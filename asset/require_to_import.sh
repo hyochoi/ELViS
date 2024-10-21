@@ -1,0 +1,1 @@
+for i in *.R; do echo $i ; cat $i | grep 'require(' | grep -v "^#"|  sed -E 's/(^[^#](.*)require|^()require)[(]["]?([^"()]+)["]?[)]/#'"'"' @import \4/g' | sort  | uniq  ; done | cat <(grep '^#'"'"' *@import *.*$' -h *)  /dev/stdin | uniq_no_sort

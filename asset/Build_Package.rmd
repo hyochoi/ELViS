@@ -1,0 +1,333 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+# Initial creation of package and repository
+
+```{r}
+root_dir = "~/ELViS"
+dir.create(root_dir,recursive=T)
+knitr::opts_knit$set(root.dir = root_dir)
+setwd(root_dir)
+print(knitr::opts_knit$get("root.dir") )
+getwd()
+library(devtools)
+
+# use_r_vscode = function(fn,root=root_dir){
+#     system(paste0("code -r ",root,"/R/",fn))
+# }
+# 
+# use_r_vscode("test.R")
+# # create_package()
+```
+
+```{r}
+
+use_git() # error happens but no worries. This has to be done once before use_fit_config call
+# make it git repository
+use_git_config(scope = c("project"),user.name="JYLeeBioinfo",user.email="jlee307@uthsc.edu")
+use_git()
+
+# add license
+use_mit_license()
+
+# usethis::create_github_token()
+# firefox does not work, then paste the url into chrome
+# it is useful since they have set some preset for scopes
+
+# require latest git
+# create gitbub repo
+gitcreds::gitcreds_set()
+# use_github(private = TRUE)
+
+
+
+```
+
+remove NAMESPACE and 
+
+```{r}
+document()
+
+use_git()
+# system("cd ..;git push")
+# 
+# getwd()
+
+```
+
+
+
+```{r}
+sync_namespace_to_description <- function(namespace_file = "NAMESPACE",force_rewrite=FALSE,biocViews_type="software",bump_ver_which=NULL) {
+  # Read the NAMESPACE file
+  lines <- readLines(namespace_file)
+  
+  # Extract package names from 'import' and 'importFrom' statements
+  import_lines <- grep("^import\\(|^importFrom\\(", lines, value = TRUE)
+  
+  # Capture package names
+  packages <- unique(gsub("^import\\(|^importFrom\\(|\\)$|,.+$", "", import_lines))
+  
+  # Load `desc` and `usethis`
+  require(desc)
+  require(usethis)
+  
+  # Ensure the DESCRIPTION file exists
+  run_license_addition = FALSE
+  if((!file.exists("DESCRIPTION"))|force_rewrite){
+    usethis::use_description()
+  
+    # Read the DESCRIPTION file
+    desc_file <- desc::description$new("DESCRIPTION")
+    
+    desc_file$set_version("0.99.0")
+    desc_file$set("VignetteBuilder", "knitr")
+    desc_file$set("biocViews", biocViews_type)
+    desc_file$del_author()
+    run_license_addition = TRUE
+  }else{
+    desc_file <- description$new(file = "DESCRIPTION")
+    if(!is.null(bump_ver_which)){
+      desc_file$bump_version(which=bump_ver_which)
+    }
+  }
+  
+  
+  
+  # update package list
+  desc_file$del_deps()
+  for (pkg in packages) {
+    if (!desc_file$has_dep(pkg)) {
+      desc_file$set_dep(pkg, "Imports")
+    }
+  }
+  
+  
+  # Save the changes to DESCRIPTION
+  desc_file$write("DESCRIPTION")
+  if(run_license_addition){
+    use_mit_license()
+  }
+  
+  
+  message("DESCRIPTION file has been updated with packages from NAMESPACE.")
+}
+```
+
+```{r}
+
+setwd(root_dir)
+usethis::use_description()
+desc_file <- desc::description$new("DESCRIPTION")
+
+# desc_file$bump_version("0.0.9")
+desc_file$bump_version(which = 3)
+
+setwd(root_dir)
+desc2 <- description$new(file = "DESCRIPTION")
+
+
+```
+
+
+```{r}
+setwd(root_dir)
+sync_namespace_to_description()
+use_git()
+```
+
+
+
+```{r}
+## If needed
+# remotes::install_github("lcolladotor/biocthis")
+
+## Create a GitHub Actions (GHA) workflow that is Bioconductor-friendly
+biocthis::use_bioc_github_action()
+usethis::use_github_action("check-standard.yaml")
+use_git()
+
+```
+
+```{bash}
+cd ..
+git commit
+git push
+cd -
+```
+
+now go to Clone_Package_Remote_Server.rmd and execut git pull
+
+
+
+
+
+
+
+
+
+
+
+# When getting the latest copy available on github
+
+```{bash}
+cd ..
+git pull
+cd -
+```
+
+
+
+# create vignette
+
+```{r}
+usethis::use_vignette("ELViS_Toy_Example")
+```
+
+
+
+
+# after making changes
+
+```{r}
+root_dir = dirname(getwd())
+dir.create(root_dir,recursive=T)
+knitr::opts_knit$set(root.dir = root_dir)
+setwd(root_dir)
+print(knitr::opts_knit$get("root.dir") )
+getwd()
+library(devtools)
+```
+
+
+
+
+
+```{r}
+# setwd(root_dir)
+document() # modify NAMESPACE according to roxygen notatio in R scripts
+sync_namespace_to_description() # modify DESCRIPTION accordint to NAMESPACE file
+use_git()
+```
+
+
+```{r}
+# if use_git() throws error
+use_git_config(scope = c("project"),user.name="JYLeeBioinfo",user.email="jlee307@uthsc.edu")
+use_git()
+
+```
+
+
+```{r}
+# DESCRIPTION_add_author = function(...){
+#   desc_file <- description$new(file = "DESCRIPTION")
+# desc_file$add_author(...)
+# desc_file$write("DESCRIPTION")
+#   
+# }
+
+# arg_to_string <- function(arg) {
+#   deparse(substitute(arg))
+# }
+
+DESCRIPTION_action = function(func,...){
+  func_str = (gsub('"','',deparse(substitute(func))))
+  desc_file <- description$new(file = "DESCRIPTION")
+  desc_file[[func_str]](...)
+  desc_file$write("DESCRIPTION")
+}
+```
+
+
+# build test
+
+```{r}
+document()
+setwd("..");sync_namespace_to_description()
+# setwd("..");sync_namespace_to_description(force_rewrite = TRUE)
+
+DESCRIPTION_action(
+  add_author,
+  given = "Hyo Young",family = "Choi",email = "hyoyoung.choi@uthsc.edu",role = c("aut"))
+
+DESCRIPTION_action(
+  add_author,
+  given = "Jin-Young",family = "Lee",email = "jlee307@uthsc.edu",role = c("aut","cre"),orcid = "0000-0002-5366-7488")
+
+DESCRIPTION_action(
+  add_author,
+  given = "D. Neil",family = "Hayes",email = "Neil.Hayes@uthsc.edu",role = c("aut","fnd"))
+
+# library(BiocCheck)
+setwd("../../testRpackage/asset/bioccheck/BiocCheck");load_all()
+setwd("..");BiocCheck()
+`check()
+# setwd("..")
+  BiocCheck::BiocCheck(
+      # dir('check', 'tar.gz$', full.names = TRUE),
+      `quit-with-status` = TRUE,
+      `no-check-R-ver` = TRUE,
+      `no-check-bioc-help` = TRUE
+  )
+  
+use_git()
+```
+
+
+
+```{bash}
+cd .. 
+git pull
+```
+
+
+
+```{bash}
+cd ..
+git commit
+git push
+cd -
+```
+
+
+```{bash}
+cd ..
+git add -A
+git commit
+git push -f
+```
+
+
+# post push testing
+ - install into new conda environment with new base R
+ - if successful, run github action by changing the workflow file to something other
+
+
+
+
+
+# run github action locally
+ - https://medium.com/@debasishkumardas5/running-github-actions-locally-a-complete-guide-for-windows-mac-and-linux-users-34c45999c7cd
+
+ - after docker installation, run following to add yourself to docker group
+
+ - `sudo usermod -aG docker $USER`
+
+
+
+```{bash}
+
+export PATH="${PATH}":~/bin # path to act executable
+cd ..
+act
+cd -
+
+```
+
+
+

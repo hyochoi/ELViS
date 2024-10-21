@@ -1,0 +1,50 @@
+Package: ELViS
+Title: What the Package Does (One Line, Title Case)
+Version: 0.99.0
+Authors@R: c(
+    person("Hyo Young", "Choi", , "hyoyoung.choi@uthsc.edu", role = "aut"),
+    person("Jin-Young", "Lee", , "jlee307@uthsc.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-5366-7488")),
+    person("D. Neil", "Hayes", , "Neil.Hayes@uthsc.edu", role = c("aut", "fnd"))
+  )
+Description: What the package does (one paragraph).
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+VignetteBuilder: knitr
+biocViews: software
+Imports: 
+    circlize,
+    ComplexHeatmap,
+    data.table,
+    dplyr,
+    GenomicFeatures,
+    GenomicRanges,
+    ggplot2,
+    glue,
+    graphics,
+    grDevices,
+    igraph,
+    IRanges,
+    jcolors,
+    knitr,
+    magrittr,
+    memoise,
+    nord,
+    parallel,
+    patchwork,
+    reticulate,
+    Rsamtools,
+    scales,
+    segclust2d,
+    stats,
+    stringr,
+    utils,
+    uuid,
+    wesanderson,
+    yarrr,
+    zoo
+Depends: 
+    R (>= 2.10)
+LazyData: true

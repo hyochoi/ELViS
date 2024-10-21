@@ -1,0 +1,1069 @@
+
+#' @import ggplot2
+#' @import GenomicFeatures
+#' @import GenomicRanges
+#' @import yarrr
+#' @noRd
+get_gene_anno_plot_ori = function(
+    gff3_fn,
+    space_length,
+    annot_margin = 0.01,
+    arrow_spacing = 0.05,
+    geme_name_space = 0.5,
+    col_pal = piratepal(palette = "info2"),
+    exclude_genes = NULL
+    ){
+
+  # plot configure
+  annot_half_height = (1-geme_name_space)/2
+  annot_halfmargin_bp = as.integer(annot_margin*space_length/2)
+  arrow_spacing_bp = as.integer(arrow_spacing*space_length)
+
+  # prep annotation
+  txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+  all_features <- transcriptsBy(txdb, by = "gene")
+  cds <- cdsBy(txdb, by = "gene")
+  if(!is.null(exclude_genes)){
+    cds = cds[!(names(cds) %in% exclude_genes)]
+  }
+
+  genes <- genes(txdb)
+  if(!is.null(exclude_genes)){
+    genes = genes[!(genes$gene_id %in% exclude_genes)]
+  }
+
+  genes_margin = genes + annot_halfmargin_bp
+  start(genes_margin) = pmax(1,start(genes_margin))
+
+  ylevels =
+    structure(
+      rep(Inf,length(genes_margin)),
+      names = names(genes)
+    )
+
+  ovlp_status = genes_margin %>%
+    findOverlaps() %>%
+    sort %>%
+    as.data.frame() %>%
+    dplyr::filter(queryHits>subjectHits)
+
+  # non-overlapping -> level 1
+  ylevels[!(seq_along(ylevels) %in% ovlp_status$queryHits)] = 1
+
+  for(ovlp in ovlp_status %>% dplyr::group_split(queryHits)){
+    q_tmp = ovlp$queryHits[1]
+    s_tmp = ovlp$subjectHits
+    # take the lowest level among those not taken already by overlapping element
+    ylevels[q_tmp] = min(setdiff(seq_along(ylevels),ylevels[s_tmp]))
+
+  }
+
+  # ylevels
+  # cds %>% lapply()
+
+  cds_plotdata =
+    names(cds) %>%
+    lapply(\(gn){
+      y_tmp = ylevels[[gn]]
+      cds_tmp = cds[[gn]]
+      s = start(cds_tmp)
+      e =   end(cds_tmp)
+      strnd = as.vector(strand(cds_tmp))[1]
+      cds_df =
+        data.frame(
+          Type    = "cds",
+          Gene    = gn,
+          Start   = s,
+          End     = e,
+          Strand  = strnd,
+          Y_Level = y_tmp
+        )
+      if(length(cds_tmp)==1){
+        output = cds_df
+      }else{
+        gap_tmp = gaps(cds_tmp,start=min(s),end=max(e),ignore.strand=TRUE)
+        gs = start(gap_tmp)
+        ge =   end(gap_tmp)
+
+        gap_df =
+          data.frame(
+            Type    = "intron",
+            Gene    = gn,
+            Start   = gs,
+            End     = ge,
+            Strand  = strnd,
+            Y_Level = y_tmp
+          )
+        output =
+          rbind(
+            cds_df,
+            gap_df
+          )
+
+      }
+
+      return(output)
+
+    }) %>%
+    rbindlist()
+
+
+
+  # cds_plotdata$Gene = cds_plotdata$Gene %>% gsub(" ","",.)
+
+  # cds_plotdata$Gene = cds_plotdata$Gene %>% gsub("_ALPHA",URLdecode("%CE%B1"),.)
+  cds_plotdata__CDS  = cds_plotdata%>% dplyr::filter(Type=="cds")
+  cds_plotdata__INTRON = cds_plotdata %>% dplyr::filter(Type=="intron")
+  cds_plotdata__INTRON_arrow_pos =
+    seq_len(NROW(cds_plotdata__INTRON)) %>%
+    lapply(\(i_tmp){
+      df_tmp =  cds_plotdata__INTRON[i_tmp,]
+      arrow_pos = seq(
+        as.integer(df_tmp$Start/arrow_spacing_bp)+1,
+        as.integer(df_tmp$End/arrow_spacing_bp)
+      )*arrow_spacing_bp
+
+      cbind(
+        df_tmp,
+        arrow_pos = arrow_pos
+      )
+    }) %>%
+    rbindlist
+
+
+  arrow_style <- arrow(type = "open", length = unit(0.05, "inch"))
+
+  Gene_levels = levels(cds_plotdata$Gene)
+  if(is.null(Gene_levels)){
+    Gene_levels = sort(unique(cds_plotdata$Gene))
+  }
+
+
+  is_custom_palette = FALSE
+  # if color palette can cover all genes, use the scale
+  if(length(col_pal)>=length(Gene_levels)){
+    is_custom_palette = TRUE
+    #
+    if(is.null(names(col_pal))||length(setdiff(cds_plotdata$Gene,names(col_pal)))!=0){ #pass if col pallete designate all colors
+      col_pal_fin = structure(
+        col_pal[seq_len(length(Gene_levels))],
+        names = Gene_levels
+      )
+    }else{
+      col_pal_fin = col_pal
+    }
+  }
+
+
+
+
+
+  annot_gene =
+    ggplot(cds_plotdata) +
+    aes(col=Gene,fill=Gene) +
+    geom_rect(
+      data = cds_plotdata__CDS,
+      mapping = aes(xmin = Start,xmax=End,ymin=Y_Level-annot_half_height,ymax=Y_Level+annot_half_height)
+    )
+  if(NROW(cds_plotdata__INTRON)!=0){
+    annot_gene =
+      annot_gene +
+      geom_linerange(
+        data = cds_plotdata__INTRON,
+        mapping = aes(xmin = Start,xmax=End,y=Y_Level),
+        linetype="dashed"
+      ) +
+      geom_segment(
+        data = cds_plotdata__INTRON_arrow_pos,
+        aes(x = arrow_pos, y = Y_Level, xend = arrow_pos + 0.01*ifelse(Strand=="+",1,-1), yend = Y_Level),  # Calculate arrow direction
+        arrow = arrow_style, size = 0.5
+      )
+  }
+
+  annot_gene =
+    annot_gene +
+    geom_text(
+      data = cds_plotdata__CDS %>% dplyr::group_by(Gene) %>% dplyr::slice_min(Start),
+      mapping = aes(x=Start,y=Y_Level+annot_half_height,label=Gene),col="black",hjust=0,vjust=-0.3
+    ) +
+    ylim(1-annot_half_height,max(cds_plotdata$Y_Level)*(1.25))
+
+
+  annot_gene_fin =
+    annot_gene +
+    theme_void() +
+    theme(legend.position = "none") #+ xlim(0,NROW(mtrx_for_plotting)+1)
+
+  if(is_custom_palette){
+    annot_gene_fin =
+      annot_gene_fin +
+      scale_color_manual(values = col_pal_fin) +
+      scale_fill_manual(values = col_pal_fin)
+
+  }
+
+  return(annot_gene_fin)
+}
+
+
+
+get_gene_anno_plot = memoise::memoise(get_gene_anno_plot_ori)
+
+
+
+
+#' Get a pile-up plot
+#'
+#' @param x target pile-up vector to plot
+#' @param target_cn_table final copy number table(default : NULL)
+#' @param baseline the copy number state index you want to set as baseline
+#' @param col_cn_baseline color for baseline
+#' @param col_pal_cn color palette for non-baseline copy number states
+#' @param scale_plot_yaxis Determine whether to scale the plot so that the lower bound of the y-axis is set to the lesser value between 0 and the minimum data value. (Default : TRUE)
+#'
+#' @import glue
+#' @import yarrr
+#' @import memoise
+#' @importFrom grDevices axisTicks axisTicks col2rgb colorRampPalette palette rainbow rgb
+#' @importFrom graphics abline axis box image layout lines mtext par plot.new points polygon segments text title
+#' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd
+#' @importFrom utils read.csv tail
+#' @return ggplot object of pile-up plot
+#' @export
+#'
+#' @examples
+#'
+#' # example usage is given in the vignette (to reduce package size)
+#'
+plot_pileUp =
+  function(x,target_cn_table=NULL,baseline=1,col_cn_baseline = "#708C98",col_pal_cn = piratepal(palette = "info2")[-5],
+           scale_plot_yaxis=TRUE){
+
+    baseline_target = baseline
+  plotdata =
+    data.frame(value = x) %>% dplyr::mutate(pos=seq_len(n()))
+
+  # print(baseline)
+  # print(target_cn_table$state)
+  # print(target_cn_table$state!=baseline)
+  # print(with(target_cn_table,table(state,baseline)))
+  nonbase_states = with(target_cn_table,state[state!=baseline_target])
+  # nonbase_states = target_cn_table$state[target_cn_table$state!=baseline]
+  # print(nonbase_states)
+  nonbase_states_us = unique(sort(nonbase_states))
+  col_pal_cn_fin = col_pal_cn
+  if(length(col_pal_cn)>length(nonbase_states_us)){
+    col_pal_cn_fin = col_pal_cn[seq_len(length(nonbase_states_us))]
+  }
+
+  if(length(nonbase_states_us)>0){
+    col_map_fin = structure(
+      c(col_cn_baseline,col_pal_cn_fin),
+      names =
+        c("baseline",glue("s{nonbase_states_us}"))
+    )
+
+    target_cn_table =
+      target_cn_table %>%
+      dplyr::mutate(
+        CN_state_plotting =
+          ifelse(state==baseline_target,"baseline",glue("s{state}")) %>%
+          factor(levels=c("baseline",glue("s{sort(unique(state[state!=baseline_target]))}")))
+      )
+
+  }else{
+    col_map_fin = structure(
+      c(col_cn_baseline),
+      names =
+        c("baseline")
+    )
+    target_cn_table =
+      target_cn_table %>%
+      dplyr::mutate(
+        CN_state_plotting = factor("baseline",levels="baseline")
+      )
+  }
+
+
+  # print(target_cn_table$CN_state_plotting)
+
+
+  gg_line =
+    ggplot() +
+    geom_line(data=plotdata,aes(x=pos,y=value),linewidth=0.5,col="gray40")
+
+  if(scale_plot_yaxis){
+    gg_line =
+      gg_line + ylim(min(0,min(x)),max(x))
+  }
+
+
+
+  if(!is.null(target_cn_table)){
+    gg_line =
+      gg_line +
+      geom_linerange(data = target_cn_table,aes(xmin=begin,xmax=end,y=mu,group=seg,
+                                                col=CN_state_plotting
+      ))  +
+      geom_rect(
+        data = target_cn_table,aes(xmin=begin,xmax=end,ymin=mu-sd,ymax=mu+sd,group=seg,
+                                   fill=CN_state_plotting),
+        alpha=0.5
+      ) +
+      scale_color_manual(values = col_map_fin) +
+      scale_fill_manual(values = col_map_fin)  +
+      labs(color="CN States",fill="CN States")
+  }
+
+  return(gg_line)
+
+}
+
+
+#' Get a list of pile-up plots over multiple samples
+#'
+#' @param result analysis result
+#' @param X_raw input raw depth matrix
+#' @param target_indices sample indices to plot
+#' @param plot_target target data type to plot (Default : `"x"`)
+#' @param gff3_fn gene annotation file name
+#' @param baseline the state index to set as baseline (Default : `1`)
+#' @param annot_margin minimum of margin between gene annotations allowed. As a fraction of plotting area. (Default : `0.01`)
+#' @param arrow_spacing gene annotation arrow spacing. As a fraction of plotting area. (Default : `0.05`)
+#' @param geme_name_space the height of white space reserved for gene names in the annotaiton. (Default : `0.5`)
+#' @param col_pal gene color palette (Default : `piratepal(palette = "info2")`)
+#' @param col_cn_baseline color for baseline (Default : `"#708C98"`)
+#' @param col_pal_cn color palette for non-baseline copy number states (Default : `piratepal(palette = "info2")[-5]`)
+#' @param exclude_genes name of genes to exclude from the annotation track (Default : NULL)
+#' @param annot_plot_ratio ratio of the annotation plot under the pileup plot
+#'
+#' @return a list of pile-up ggplot object
+#' @import patchwork
+#' @import yarrr
+#' @export
+#'
+#' @examples
+#'
+#' # example usage is given in the vignette (to reduce package size)
+#'
+plot_pileUp_multisample = function(
+    result,
+    X_raw,
+    target_indices = NULL,
+    plot_target = "x",
+    gff3_fn,
+    baseline=1,
+    annot_margin = 0.01,
+    arrow_spacing = 0.05,
+    geme_name_space = 0.5,
+    col_pal = piratepal(palette = "info2"),
+    col_cn_baseline = "#708C98",
+    col_pal_cn = piratepal(palette = "info2")[-5],
+    exclude_genes = NULL,
+    annot_plot_ratio = 0.3
+){
+
+  if(length(baseline)==1){
+    baseline = rep(baseline,NCOL(X_raw))
+  }
+  # print(baseline)
+
+
+
+  if(is.null(target_indices)){
+    target_indices = result$final_call$cnv_samples
+  }
+
+  # plot data setting
+  if(plot_target=="x"){
+    matrix_type="Raw Depth"
+    mtrx_for_plotting = X_raw
+    cn_for_plotting =
+      result$final_output %>%
+      dplyr::transmute(
+        sampleID,
+        seg,
+        begin,
+        end,
+        mu = mu.x,
+        sd = sd.x,
+        baseline,
+        state,
+        cn
+      )
+  }else if(plot_target=="y"){
+    matrix_type="Normalized Depth"
+    mtrx_for_plotting = result$new_Y_p2
+    cn_for_plotting =
+      result$final_output %>%
+      dplyr::transmute(
+        sampleID,
+        seg,
+        begin,
+        end,
+        mu = mu.y,
+        sd = sd.y,
+        baseline,
+        state,
+        cn
+      )
+  }else if(plot_target=="z"){
+    matrix_type="Robust Z-score"
+    mtrx_for_plotting =
+      Z <- t(apply(result$new_Y_p2,1,function(x) pd.rate.hy(x,qrsc=T)))
+    cn_for_plotting =
+      result$final_output %>%
+      dplyr::transmute(
+        sampleID,
+        seg,
+        begin,
+        end,
+        mu = mu.z,
+        sd = sd.z,
+        baseline,
+        state,
+        cn
+      )
+  }
+
+
+  plot_gene_anno = FALSE
+  if(!is.null(gff3_fn)){
+
+    plot_gene_anno = TRUE
+    annot_gene = get_gene_anno_plot(
+      gff3_fn = gff3_fn,
+      space_length = NROW(X_raw),
+      annot_margin = annot_margin,
+      arrow_spacing = arrow_spacing,
+      geme_name_space = geme_name_space,
+      col_pal = col_pal,
+      exclude_genes = exclude_genes
+    )
+
+    annot_gene_fin =
+      annot_gene +
+      xlim(0,NROW(mtrx_for_plotting)+1) +
+      theme(plot.margin = unit(c(0, 5.5, 5.5, 5.5), "pt"))
+  }
+
+
+
+  YLIM =
+    c(
+      min(0,mtrx_for_plotting[,target_indices]),
+      max(mtrx_for_plotting[,target_indices])
+    )
+
+  output =
+    target_indices %>%
+    lapply(\(sample_idx){
+      # print(sample_idx)
+      x = mtrx_for_plotting[,sample_idx]
+      sample_ID = colnames(X_raw)[sample_idx]
+      target_cn_table = cn_for_plotting %>% dplyr::filter(sampleID==sample_ID)
+
+
+      gg_line =
+        plot_pileUp(
+          x=x,target_cn_table=target_cn_table,baseline=baseline[sample_idx],
+          col_cn_baseline=col_cn_baseline,col_pal_cn=col_pal_cn,
+          scale_plot_yaxis=FALSE
+        )
+      suppressWarnings({
+        gg_line_fin = gg_line + ylim(YLIM[1],YLIM[2])
+      })
+
+      gg_line_fin = gg_line_fin + xlim(0,NROW(mtrx_for_plotting)+1) +
+        theme(plot.margin = unit(c(5.5, 5.5, 1, 5.5), "pt")) +
+        ggtitle(paste0(matrix_type," ",sample_ID))
+
+      if(plot_gene_anno){
+        return(
+          gg_line_fin / annot_gene_fin + plot_layout(heights = c(1-annot_plot_ratio, annot_plot_ratio))
+
+          )
+      }else{
+        return(gg_line_fin)
+      }
+
+    })
+
+  return(output)
+
+}
+
+
+
+
+
+
+
+
+
+#' Plot heatmaps based on simple integrative clustering of multiple matrices
+#'
+#' @param X_raw Raw depth matrix
+#' @param result Run result
+#' @param col_pal_gene color palette for gene colors
+#' @param col_cn Color scheme for copy number heatmap (Default :`colorRamp2(c(0.5,1,1.5),c(muted("blue"),"white",muted("red")))`)
+#' @param col_y Color scheme for normalized read depth(Y) heatmap (Default : `colorRamp2(c(0.5,1,2),c(muted("blue"),"white",muted("red")))`)
+#' @param col_z Color scheme for Z-score heatmap (Default : `colorRamp2(c(-4,0,4),c(muted("blue"),"white",muted("red")))`)
+#' @param col_x_scaled Color scheme for scaled raw depth(X) heatmap (Default : `"auto"`)
+#' @param col_vl Color scheme for positional viral load heatmap (Default : `"auto"`)
+#' @param baseline Vector of state numbers to use as baseline for each sample. If it is single integer, then the given state number is used for all samples. (Default : `1`)
+#' @param matrices_to_plot Names and orders of the matrices to show as heatmap. Any permutation of `c("CN","Y","Z","X_Scaled","Viral_Load")` of any length is allowed. The vertical orders of stacked heatmaps follows the order of this vector. If set to `"all"`, `c("CN","Y","Z","X_Scaled","Viral_Load")` is used. (Default : `"all"`)
+#' @param matrices_integ_cluster Names of the matrices to be used for integrative clustering for column orders. Any combination of `c("CN","Y","Z","X_Scaled","Viral_Load")` of length > 1 is allowed. If the length is less then 2, then it is ignored and the first matrix specified in `matrices_to_plot` argument is used for column ordering. The vertical orders of stacked heatmaps follows the order of this vector. If set to `"all"`, `c("CN","Y","Z","X_Scaled","Viral_Load")` is used. (Default : `"all"`)
+#' @param total_aligned_base__host_and_virus Total aligned bases for each sample(i.e. from picard,gatk,qualimap). Used to calculate positional load of viral DNA. Makes sense if regions in host genome are also included in the target panel. Ignored if set to NULL. (Default : NULL)
+#' @param return_data_matrices boolean whether to return the data matrices used. (Default : `FALSE`)
+#'
+#' @return A ComplexHeatmap Heatmap List object vertically stacked
+#' @export
+#'
+#' @import magrittr
+#' @import ComplexHeatmap
+#' @import circlize
+#' @import scales
+#'
+#' @examples
+#'
+#' # example usage is given in the vignette (to reduce package size)
+#'
+integrative_heatmap <- function(
+    X_raw,
+    result,
+    gff3_fn,
+    exclude_genes,
+    col_pal_gene = piratepal(palette = "info2"),
+    col_cn = colorRamp2(c(0.5,1,1.5),c(muted("blue"),"white",muted("red"))),
+    col_y = colorRamp2(c(0.5,1,2),c(muted("blue"),"white",muted("red"))),
+    col_z = colorRamp2(c(-4,0,4),c(muted("blue"),"white",muted("red"))),
+    col_x_scaled = "auto",
+    col_vl = "auto",
+    baseline = 1,
+    matrices_to_plot = "all",  # the kind and order of the matrix to show as heatmap
+    matrices_integ_cluster = "all", # If only single matrix is specified, then it is ignored and the first matrix of `matrices_to_plot` will be used for clustering. If set to `"all"`, all the matrices available are used for integrative clustering.
+    total_aligned_base__host_and_virus = NULL,
+    return_data_matrices = FALSE
+){
+
+  rnt_gene_name = get_gene_rnt(
+    gff3_fn = gff3_fn,
+    space_length = NROW(X_raw),
+    exclude_genes = exclude_genes,
+    col_pal_gene = col_pal_gene,
+    annotation_name_side = "top"
+  )
+  rnt_rm_gnm = get_gene_rnt(
+    gff3_fn = gff3_fn,
+    space_length = NROW(X_raw),
+    exclude_genes = exclude_genes,
+    col_pal_gene = col_pal_gene,
+    show_annotation_name = FALSE
+  )
+
+  # (Heatmap(matrix(1:(2*NROW(X_raw)),ncol=2),cluster_rows = FALSE) + rnt_gene_name) %v%
+  # (Heatmap(matrix(1:(2*NROW(X_raw)),ncol=2),cluster_rows = FALSE) + rnt_rm_gnm)
+
+
+  # result$final_output
+  matrix_all_ori = c("CN","Y","Z","X_Scaled","Viral_Load")
+  if(is.null(viral_load)){
+    matrix_all = setdiff(matrix_all,"Viral_Load")
+  }else{
+    matrix_all = matrix_all_ori
+  }
+
+
+  if(length(baseline)==1){
+    baseline = rep(baseline,NCOL(X_raw))
+  }
+  baseline_target = baseline
+
+  if(matrices_to_plot[1]=="all"){
+    matrices_to_plot = matrix_all
+  }else{
+    matrices_to_plot = base::intersect(matrices_to_plot,matrix_all)
+  }
+  matrices_to_plot_original = matrices_to_plot
+
+  if(matrices_integ_cluster[1]=="all"){
+    matrices_integ_cluster = matrix_all
+  }else{
+    matrices_integ_cluster = base::intersect(matrices_integ_cluster,matrix_all)
+  }
+
+  matrix_not_shown = setdiff(matrices_integ_cluster,matrices_to_plot)
+  if(length(matrix_not_shown)>0){
+    warning(glue("These matrices were used for clustering but will not be shown in the figure : {paste(matrix_not_shown,collapse=', ')}"))
+  }
+
+  if(class(col_vl)!="function"){
+    if( col_vl[1] =="auto"){
+      col_vl = viridis_pal(option="turbo")(11)
+    }
+  }
+
+  X_scaled = apply(X_raw,2,function(x) (10^6)*(x/sum(x)))
+  X_scaled_log2p1 = log2(X_scaled+1)
+
+  if(class(col_x_scaled)!="function"){
+    if(col_x_scaled[1]=="auto"){
+      LQ_Smin = X_scaled_log2p1 %>% apply(2,min) %>% quantile(0.20)
+      median = X_scaled_log2p1 %>% median
+      UQ_Smax = X_scaled_log2p1 %>% apply(2,max) %>% quantile(0.95)
+      # min_Smax = X_scaled_log2p1 %>% apply(2,\(x) c(min(x),max(x))) %>% .[2,] %>% min # min of sample max
+
+      cntr = median
+      col_x_scaled =
+        scales::viridis_pal(option="turbo")(11) %>%
+        circlize::colorRamp2(
+          c(
+            (LQ_Smin-cntr)*((length(.)%/%2):1)/(length(.)%/%2),
+            0,
+            (UQ_Smax-cntr)*(1:(length(.)%/%2))/(length(.)%/%2)
+          ) +cntr
+          ,.)
+    }
+  }
+
+
+  list_ht_name =
+    list(
+      CN = "CN",
+      Y = "Normalized\nRead Depth",
+      Z = "Z-Score",
+      X_Scaled = "X Scaled\nLog2p1",
+      Viral_Load = "Viral Load\nLog2p1"
+    )
+  list_ht_rowtitle =
+    list(
+      CN = "Copy Number",
+      Y = "Normalized\nRead Depth(Y)",
+      Z = "Z-Score",
+      X_Scaled = "X Scaled",
+      Viral_Load = "Positional\nViral Load"
+    )
+  list_col =
+    list(
+      CN = col_cn,
+      Y = col_y,
+      Z = col_z,
+      X_Scaled = col_x_scaled,
+      Viral_Load = col_vl
+    )
+  list_rowant =
+    matrix_all_ori %>% {
+      tmp = .
+      structure(
+        ifelse(
+          tmp %in% matrices_to_plot[1],
+          list(rnt_gene_name),
+          list(rnt_rm_gnm)
+        ),
+        names=tmp
+      )
+    }
+
+
+
+
+
+  list_matrix = list()
+  list_ht = list()
+  if(is.null(viral_load)){
+    # remove positional viral load plot if overall viral load was not given
+    matrices_to_plot = setdiff(matrices_to_plot,"Viral_Load")
+    matrices_integ_cluster = setdiff(matrices_integ_cluster,"Viral_Load")
+  }else{
+    key = "Viral_Load"
+    list_matrix[[key]] =
+      log2(t(t((10^6)*X_raw)/total_aligned_base__host_and_virus)+1)
+
+    list_ht[[key]] =
+      Heatmap(
+        name=list_ht_name[[key]],
+        row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+        list_matrix[[key]],
+        cluster_rows = FALSE,
+        col=list_col[[key]],
+        border=TRUE,
+        show_column_names = FALSE,
+        right_annotation = list_rowant[[key]]
+      )
+  }
+
+
+
+
+
+  key = "CN"
+  list_matrix[[key]] =
+    # cn_rblist =
+    result$final_output %>%
+    group_by(id) %>%
+    dplyr::mutate(cn = cn-cn[state==unique(baseline_target[id])][1]+1 ) %>%
+    dplyr::select(cn,id,begin,end) %>%
+    apply(1,\(x) data.frame(pos=x[[3]]:x[[4]],sid=x[[2]],value=x[[1]])) %>% rbindlist %>%
+    dcast(pos~sid,value.var = "value") %>%
+    dplyr::select(-pos)
+
+  list_ht[[key]] =
+    Heatmap(
+      name=list_ht_name[[key]],
+      row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+      list_matrix[[key]],
+      cluster_rows = FALSE,
+      col=list_col[[key]],
+      border=TRUE,
+      show_column_names = FALSE,
+      right_annotation = list_rowant[[key]]
+    )
+
+
+  key = "Y"
+  list_matrix[[key]] = result$new_Y_p2
+
+  list_ht[[key]] =
+    Heatmap(
+      name=list_ht_name[[key]],
+      row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+      list_matrix[[key]],
+      cluster_rows = FALSE,
+      col=list_col[[key]],
+      border=TRUE,
+      show_column_names = FALSE,
+      right_annotation = list_rowant[[key]]
+    )
+
+  key = "Z"
+  list_matrix[[key]] = t(apply(result$new_Y_p2,1,function(x) pd.rate.hy(x,qrsc=T)))
+
+  list_ht[[key]] =
+    Heatmap(
+      name=list_ht_name[[key]],
+      row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+      list_matrix[[key]],
+      cluster_rows = FALSE,
+      col=list_col[[key]],
+      border=TRUE,
+      show_column_names = FALSE,
+      right_annotation = list_rowant[[key]]
+
+    )
+
+  # "X_Scaled"
+
+
+  key = "X_Scaled"
+  list_matrix[[key]] = X_scaled_log2p1
+
+  list_ht[[key]] =
+    Heatmap(
+      name=list_ht_name[[key]],
+      row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+      list_matrix[[key]],
+      cluster_rows = FALSE,
+      col=list_col[[key]],
+      border=TRUE,
+      show_column_names = FALSE,
+      right_annotation = list_rowant[[key]]
+    )
+
+
+  final_matrices_used_for_clustering = matrices_to_plot[1]
+  if(length(matrices_integ_cluster)>1){
+    final_matrices_used_for_clustering = matrices_integ_cluster
+    Top_matrix_name = matrices_to_plot[1]
+
+    key = "Integrative"
+    matrices_to_plot[1] = key
+    list_matrix[[key]] = list_matrix[[Top_matrix_name]]
+    list_ht_name[[key]] = list_ht_name[[Top_matrix_name]]
+    list_ht_rowtitle[[key]] = list_ht_rowtitle[[Top_matrix_name]]
+    list_col[[key]] = list_col[[Top_matrix_name]]
+    list_rowant[[key]] = list_rowant[[Top_matrix_name]]
+
+
+    dist_list =
+      list_matrix[matrices_integ_cluster] %>%
+      lapply(\(mtrx){
+        # get sample distance matrix
+        mtrx %>% as.matrix %>% t %>% dist() #%>%
+        # normalized distance matrix by median
+        # {./quantile(.,q_p)}
+      })
+
+    ltm_quantile = Reduce(max,dist_list %>% lapply(\(dst) mean(dst<mean(dst)) ))
+    q_p = 0.75
+    q_p = min(1,max(q_p,ltm_quantile*1.1))
+    norm_dist_list = dist_list %>% lapply(\(dst) dst/quantile(dst,q_p) )
+
+    integ_dendro =
+      {Reduce(`+`,norm_dist_list)/length(matrices_integ_cluster)} %>%
+      hclust(method="complete") %>%
+      as.dendrogram
+
+    list_ht[[key]] =
+      Heatmap(
+        name=list_ht_name[[key]],
+        row_title = list_ht_rowtitle[[key]],row_title_rot = 0,
+        list_matrix[[key]],column_dend_reorder = TRUE,
+        cluster_rows = FALSE,
+        col=list_col[[key]],
+        border=TRUE,
+        show_column_names = FALSE,
+        cluster_columns = integ_dendro,
+        right_annotation = list_rowant[[key]]
+      )
+
+  }
+
+  list_ht_reordered = list_ht[matrices_to_plot]
+  htlst = Reduce(ComplexHeatmap::`%v%`,list_ht_reordered)
+
+  output =
+    list(
+      Heatmap = htlst,
+      matrices_shown = matrices_to_plot_original,
+      matrices_clustered = final_matrices_used_for_clustering,
+      column_order = column_order(list_ht_reordered[[1]])
+    )
+
+  if(return_data_matrices){
+    output =
+      list_matrix[names(list_matrix) != "Integrative"] %>%
+      lapply(as.matrix) %>%
+      lapply(magrittr::set_colnames,colnames(X_raw))
+  }
+
+  return(
+    output
+  )
+
+}
+
+
+
+
+
+
+#' Row annotation that shows positions of CDSs of genes.
+#'
+#' @param gff3_fn gene annotation file name
+#' @param space_length length of target region
+#' @param exclude_genes name of genes to exclude from the annotation track (Default : NULL)
+#' @param col_pal_gene palette for gene colors
+#'
+#' @return ComplexHeatmap RowAnnotation
+#' @noRd
+get_gene_rnt_ori = function(
+    gff3_fn,
+    space_length,
+    exclude_genes,
+    col_pal_gene = piratepal(palette = "info2"),
+    ...
+){
+
+
+  txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+
+  genes <- genes(txdb) %>% sort
+  cds <- cdsBy(txdb, by = "gene")
+  if(!is.null(exclude_genes)){
+    cds = cds[!(names(cds) %in% exclude_genes)]
+    genes = genes[!(names(genes) %in% exclude_genes)]
+  }
+
+  # Gene_levels = names(cds)
+  Gene_levels = unique(genes$gene_id)
+
+  is_custom_palette = FALSE
+  # if color palette can cover all genes, use the scale
+  if(length(col_pal_gene)>=length(Gene_levels)){
+    is_custom_palette = TRUE
+    #
+    if(is.null(names(col_pal_gene))||length(setdiff(Gene_levels,names(col_pal_gene)))!=0){ #pass if col pallete designate all colors
+      col_pal_fin = structure(
+        col_pal_gene[seq_len(length(Gene_levels))],
+        names = Gene_levels
+      )
+    }else{
+      col_pal_fin = col_pal_gene
+    }
+  }
+
+  cds_df =
+    cds[Gene_levels] %>%
+    lapply(\(gr){
+
+      target_indice =
+        data.frame(
+          s = start(gr),
+          e = end(gr)
+        ) %>%
+        apply(1,\(x) seq(x[1],x[2])) %>%
+        unlist
+      as.character(seq_len(space_length) %in% target_indice)
+    }) %>%
+    as.data.frame() %>%
+    magrittr::set_colnames(Gene_levels)
+
+  rnt =
+    rowAnnotation(
+      df = cds_df,
+      col =
+        structure(
+          lapply(col_pal_fin,\(x) c("TRUE"=x,"FALSE"="ivory")),
+          names = names(col_pal_fin)
+        ),
+      border=TRUE,
+      show_legend = FALSE,
+      ...
+    )
+
+  return(rnt)
+
+}
+
+get_gene_rnt = memoise::memoise(get_gene_rnt_ori)
+
+
+
+
+#' Gene Copy Number Heatmap
+#'
+#' @param X_raw Raw depth matrix
+#' @param result Run result
+#' @param gff3_fn gene annotation file name
+#' @param gene_ref The name of the gene to set as reference for relative gene dosage heatmap
+#' @param baseline Vector of state numbers to use as baseline for each sample. If it is single integer, then the given state number is used for all samples. (Default : `1`)
+#' @param exclude_genes name of genes to exclude from the annotation track (Default : NULL)
+#' @param col_cn relative gene dosage color palette. (Default : `colorRamp2(c(0.5,1,1.5),c(muted("blue"),"white",muted("red")))`)
+#' @param heatmap_height heatmap height specified using unit function. (Default : `unit(1.5,"in")`)
+#'
+#' @return a ComplexHeatmap Heatmap List object
+#' @export
+#'
+#' @examples
+#'
+#' # example usage is given in the vignette (to reduce package size)
+#'
+gene_cn_heatmaps =
+  function(
+    X_raw,
+    result,
+    gff3_fn,
+    gene_ref,
+    baseline=1,
+    exclude_genes,
+    col_cn = colorRamp2(c(0.5,1,1.5),c(muted("blue"),"white",muted("red"))),
+    heatmap_height = unit(1.5,"in")
+  ){
+
+    if(length(baseline)==1){
+      baseline = rep(baseline,NCOL(X_raw))
+    }
+    baseline_target = baseline
+
+
+    txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+
+
+    genes <- genes(txdb) %>% sort
+    cds <- cdsBy(txdb, by = "gene")
+
+    if(!is.null(exclude_genes)){
+      genes = genes[!(genes$gene_id %in% exclude_genes)]
+      cds = cds[!(names(cds) %in% exclude_genes)]
+    }
+
+
+    cds_ul = unlist(cds,use.names = TRUE)
+    mcols(cds_ul)$gene_id = rep(names(cds),elementNROWS(cds))
+    cds_ul_sort = cds_ul %>% sort
+
+    # rep(c(1,2,3),c(2,3))
+    genes_levels = unique(genes$gene_id)
+
+    chr = as.character(seqnames(cds_ul_sort))[1]
+
+    CN_info =
+      result$final_output %>%
+      dplyr::group_by(id) %>%
+      dplyr::mutate(cn = cn-cn[state==unique(baseline_target[id])][1]+1 ) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_split(id) %>%
+      lapply(\(df){
+        gr =
+          df %>%
+          dplyr::transmute(chr=chr,start=begin,end) %>%
+          makeGRangesFromDataFrame()
+
+
+        findOverlaps(cds_ul_sort,gr) %>%
+          as.data.frame() %>%
+          dplyr::transmute(
+            gene_id = cds_ul_sort$gene_id[queryHits] %>% factor(levels=genes_levels),
+            cn = df$cn[subjectHits]
+          ) %>%
+          dplyr::group_by(gene_id) %>%
+          dplyr::summarise(Min_CN=min(cn),Max_CN=max(cn)) %>%
+          dplyr::mutate(id=df$id[1])
+      }) %>%
+      rbindlist
+
+
+    minCN_mtrx =
+      CN_info %>%
+      dcast(gene_id~id,value.var="Min_CN") %>%
+      as.data.frame %>%
+      magrittr::set_rownames(.$gene_id) %>%
+      dplyr::select(-gene_id) %>%
+      magrittr::set_colnames(colnames(X_raw)) %>%
+      as.matrix
+
+    relCN_mtrx =
+      t(t(minCN_mtrx)/minCN_mtrx[gene_ref,])
+
+    ht_gene =
+      Heatmap(
+        name="Gene CN",
+        row_title = "Intact\nGene CN",
+        minCN_mtrx,
+        col=col_cn,
+        cluster_rows=FALSE,
+        show_column_names=FALSE,
+        heatmap_height = unit(1.5,"in"),
+        row_title_rot = 0,
+        border=TRUE
+      )
+
+    ht_gene_rel =
+      Heatmap(
+        row_title=glue("Dosage Relative\nto {gene_ref}"),
+        name = "Relative\nDosage",
+        relCN_mtrx,
+        col=col_cn,
+        cluster_rows=FALSE,
+        show_column_names=FALSE,
+        heatmap_height = unit(1.5,"in"),
+        row_title_rot = 0,
+        border=TRUE
+      )
+
+    output =
+      list(
+        Heatmaps =
+          list(
+            intact_gene_cn = ht_gene,
+            rel_dosage = ht_gene_rel
+          ),
+        Matrices =
+          list(
+            intact_gene_cn = ht_gene,
+            rel_dosage = ht_gene_rel
+          )
+      )
+
+  }
