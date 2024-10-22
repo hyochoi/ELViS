@@ -58,6 +58,36 @@ Get a list of pile-up plots over multiple samples
 }
 \examples{
 
-# example usage is given in the vignette (to reduce package size)
+# gff3 gene model file
+package_name = "ELViS"
+gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+
+# loading precalculated depth matrix
+data(mtrx_samtools_reticulate)
+
+# threshold
+th = 50
+
+# filtered matrix
+base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+
+data(ELViS_toy_run_result)
+result = ELViS_toy_run_result
+
+# get line plots for shape-change samples
+gg_lst_x =
+plot_pileUp_multisample(
+  result = result,
+  X_raw = base_resol_depth,
+  plot_target = "x",
+  gff3 = gff3_fn,
+  baseline=1,
+  exclude_genes = c("E6*","E1^E4","E8^E2"),
+  target_indices = result$final_call$cnv_samples[1:3]
+  )
+
+gg_lst_x[[1]]
+
+
 
 }

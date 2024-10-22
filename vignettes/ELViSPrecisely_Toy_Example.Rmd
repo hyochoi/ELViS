@@ -19,23 +19,6 @@ knitr::opts_chunk$set(
 
 
 
-```{r setup}
-
-chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-
-if (nzchar(chk) && chk == "TRUE") {
-    # use 2 cores in CRAN/Travis/AppVeyor
-  supp
-    library(ELViS)
-} else {
-    library(devtools)
-    document()
-    load_all()
-}
-
-```
-
-
 
 # 1. Introduction
 
@@ -55,7 +38,20 @@ if (nzchar(chk) && chk == "TRUE") {
 
 Load required libraries.
 
-```{r}
+```{r setup}
+
+
+chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+
+if (nzchar(chk) && chk == "TRUE") {
+    # use 2 cores in CRAN/Travis/AppVeyor
+    library(ELViS)
+} else {
+    library(devtools)
+    document()
+    load_all()
+}
+
 library(dplyr)
 library(glue)
 library(stringr)
@@ -402,8 +398,8 @@ integ_ht_result = integrative_heatmap(
   result = result,
   gff3_fn = gff3_fn,
   exclude_genes = exclude_genes,
-  baseline = new_baseline,
-  # baseline=1,
+  # baseline = new_baseline,
+  baseline=1,
   # col_z = col_z,
   total_aligned_base__host_and_virus = total_aligned_base__host_and_virus
 )

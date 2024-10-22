@@ -40,6 +40,48 @@ Gene Copy Number Heatmap
 }
 \examples{
 
-# example usage is given in the vignette (to reduce package size)
+
+
+# gff3 gene model file
+package_name = "ELViS"
+gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+
+# loading precalculated depth matrix
+data(mtrx_samtools_reticulate)
+
+# threshold
+th = 50
+
+# filtered matrix
+base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+
+# viral load data
+data(total_aligned_base__host_and_virus)
+viral_load = (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
+
+# load ELViS run result
+data(ELViS_toy_run_result)
+result = ELViS_toy_run_result
+
+# genes to exclude from plotting
+exclude_genes = c("E6*","E1^E4","E8^E2")
+
+# heatmap of gene dosage
+gene_ref="E7"
+
+gene_cn =
+  gene_cn_heatmaps(
+    X_raw = base_resol_depth,
+    result = result,
+    gff3_fn = gff3_fn,
+    baseline = 1,
+    gene_ref = gene_ref,
+    exclude_genes = exclude_genes
+    )
+
+gene_cn
+
+
+
 
 }

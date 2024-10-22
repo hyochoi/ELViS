@@ -212,7 +212,7 @@ get_gene_anno_plot = memoise::memoise(get_gene_anno_plot_ori)
 
 
 
-#' Get a pile-up plot
+#' Get a pile-up plot, internal function
 #'
 #' @param x target pile-up vector to plot
 #' @param target_cn_table final copy number table(default : NULL)
@@ -229,12 +229,8 @@ get_gene_anno_plot = memoise::memoise(get_gene_anno_plot_ori)
 #' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd
 #' @importFrom utils read.csv tail
 #' @return ggplot object of pile-up plot
-#' @export
 #'
-#' @examples
-#'
-#' # example usage is given in the vignette (to reduce package size)
-#'
+#' @noRd
 plot_pileUp =
   function(x,target_cn_table=NULL,baseline=1,col_cn_baseline = "#708C98",col_pal_cn = piratepal(palette = "info2")[-5],
            scale_plot_yaxis=TRUE){
@@ -344,7 +340,37 @@ plot_pileUp =
 #'
 #' @examples
 #'
-#' # example usage is given in the vignette (to reduce package size)
+#' # gff3 gene model file
+#' package_name = "ELViS"
+#' gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+#'
+#' # loading precalculated depth matrix
+#' data(mtrx_samtools_reticulate)
+#'
+#' # threshold
+#' th = 50
+#'
+#' # filtered matrix
+#' base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+#'
+#' data(ELViS_toy_run_result)
+#' result = ELViS_toy_run_result
+#'
+#' # get line plots for shape-change samples
+#' gg_lst_x =
+#' plot_pileUp_multisample(
+#'   result = result,
+#'   X_raw = base_resol_depth,
+#'   plot_target = "x",
+#'   gff3 = gff3_fn,
+#'   baseline=1,
+#'   exclude_genes = c("E6*","E1^E4","E8^E2"),
+#'   target_indices = result$final_call$cnv_samples[1:3]
+#'   )
+#'
+#' gg_lst_x[[1]]
+#'
+#'
 #'
 plot_pileUp_multisample = function(
     result,
@@ -527,7 +553,44 @@ plot_pileUp_multisample = function(
 #'
 #' @examples
 #'
-#' # example usage is given in the vignette (to reduce package size)
+#'
+#' # gff3 gene model file
+#' package_name = "ELViS"
+#' gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+#'
+#' # loading precalculated depth matrix
+#' data(mtrx_samtools_reticulate)
+#'
+#' # threshold
+#' th = 50
+#'
+#' # filtered matrix
+#' base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+#'
+#' # viral load data
+#' data(total_aligned_base__host_and_virus)
+#' viral_load = (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
+#'
+#' # load ELViS run result
+#' data(ELViS_toy_run_result)
+#' result = ELViS_toy_run_result
+#'
+#' # genes to exclude from plotting
+#' exclude_genes = c("E6*","E1^E4","E8^E2")
+#'
+#' # heatmap based on integrative clustering
+#' integ_ht_result = integrative_heatmap(
+#'   X_raw = base_resol_depth,
+#'   result = result,
+#'   gff3_fn = gff3_fn,
+#'   exclude_genes = exclude_genes,
+#'   baseline=1,
+#'   total_aligned_base__host_and_virus = total_aligned_base__host_and_virus
+#'   )
+#'
+#' integ_ht_result
+#'
+#'
 #'
 integrative_heatmap <- function(
     X_raw,
@@ -947,7 +1010,49 @@ get_gene_rnt = memoise::memoise(get_gene_rnt_ori)
 #'
 #' @examples
 #'
-#' # example usage is given in the vignette (to reduce package size)
+#'
+#'
+#' # gff3 gene model file
+#' package_name = "ELViS"
+#' gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+#'
+#' # loading precalculated depth matrix
+#' data(mtrx_samtools_reticulate)
+#'
+#' # threshold
+#' th = 50
+#'
+#' # filtered matrix
+#' base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+#'
+#' # viral load data
+#' data(total_aligned_base__host_and_virus)
+#' viral_load = (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
+#'
+#' # load ELViS run result
+#' data(ELViS_toy_run_result)
+#' result = ELViS_toy_run_result
+#'
+#' # genes to exclude from plotting
+#' exclude_genes = c("E6*","E1^E4","E8^E2")
+#'
+#' # heatmap of gene dosage
+#' gene_ref="E7"
+#'
+#' gene_cn =
+#'   gene_cn_heatmaps(
+#'     X_raw = base_resol_depth,
+#'     result = result,
+#'     gff3_fn = gff3_fn,
+#'     baseline = 1,
+#'     gene_ref = gene_ref,
+#'     exclude_genes = exclude_genes
+#'     )
+#'
+#' gene_cn
+#'
+#'
+#'
 #'
 gene_cn_heatmaps =
   function(
