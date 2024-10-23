@@ -39,10 +39,10 @@ check_and_install_conda <- function() {
 #' @param conda (samtools_reticulate) Path to conda executable. Set to "auto" to let the reticulate automatically decide which conda to use. (Default : "auto")
 #'
 #' @return a matrix of positions x samples containing base-resolution raw read depth
-#' @import Rsamtools
+#' @rawNamespace import(Rsamtools, except=c(index,"index<-"))
 #' @import parallel
 #' @import reticulate
-#' @import data.table
+#' @rawNamespace import(data.table, except=c(between,first,last,shift,yearmon,yearqtr))
 #' @export
 #'
 #' @examples
@@ -163,7 +163,6 @@ get_depth_matrix =
   }
 
 
-#' @import Rsamtools
 #' @noRd
 get_depth_matrix_Rsamtools =
   function(
@@ -216,7 +215,6 @@ get_depth_matrix_Rsamtools =
 
 
 
-#' @import Rsamtools
 #' @noRd
 get_depth_Rsamtools =
   function(bam_fn,scanBamParam,pileupParam){
@@ -453,7 +451,6 @@ run_samtools = function(
 
 
 
-#' @import Rsamtools
 #' @noRd
 get_depth_matrix_samtools =
   function(
@@ -548,10 +545,8 @@ get_depth_samtools =
 #' @param conda (samtools_reticulate) Path to conda executable. Set to "auto" to let the reticulate automatically decide which conda to use. (Default : "auto")
 #'
 #' @return a matrix of positions x samples containing base-resolution raw read depth
-#' @import Rsamtools
 #' @import parallel
 #' @import reticulate
-#' @import data.table
 #' @noRd
 get_depth_matrix_gp =
   function(
@@ -630,7 +625,6 @@ get_depth_matrix_gp =
 
 
 
-#' @import Rsamtools
 #' @noRd
 get_depth_matrix_Rsamtools_gp =
   function(
@@ -694,7 +688,6 @@ get_depth_matrix_Rsamtools_gp =
 
 
 
-#' @import Rsamtools
 #' @noRd
 get_depth_matrix_samtools_gp =
   function(
@@ -761,7 +754,7 @@ coord_to_lst = function(coord){
 #' @param coord string in the form of "chr1:123-456" or "chr1:1,234-5,678,912"
 #'
 #' @return GRanges object corresponding to the input coordinate string
-#' @import IRanges
+#' @rawNamespace import(IRanges, except=c(collapse,desc,intersect,median,quantile,sd,setdiff,shift,slice,trim,union))
 #' @export
 #'
 #' @examples

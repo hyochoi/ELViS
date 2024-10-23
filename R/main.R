@@ -103,11 +103,9 @@ anno_color_var <- function(variable, palette=NULL, palette_id=NULL, palette_orde
 
 
 
-#' @import zoo
 #' @noRd
 detect_BPs <- function(y, half.width=250, prob.cutoff=0.95, q.Y=5) {
   # y <- Ydiff[,sam]
-  require(zoo)
   # rollYquant0 <- rollapply(y,width=2*half.width,FUN=function(x) quantile(x,probs=prob.cutoff))
   rollYquant0 <- rollapply(abs(y),width=2*half.width,FUN=function(x) quantile(x,probs=prob.cutoff))
   rollYquant <- c(rep(rollYquant0[1],half.width), rollYquant0, rep(tail(rollYquant0,1),half.width-1))
@@ -149,15 +147,13 @@ pooled_sd <- function(s1, s2, n1, n2) {
 #' @param BP.xdepth minimum change of raw depth
 #'
 #' @return data.frame containing segmentation results
-#' @import zoo
-#' @import igraph
+#' @rawNamespace import(igraph, except=c(as_data_frame,degree,groups,union))
 #' @import stringr
 #' @noRd
 get_BPsegment_v2 <- function(X, Y, Z=NULL, sampleID,
                              q.Y.BP1 = 5,
                              q.Y.BP2 = 10,
                              BP.ydepth = 0.08, BP.xdepth = 10) {
-  require(zoo)
   if (is.numeric(sampleID)) {
     sam <- sampleID
   } else {

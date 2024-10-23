@@ -1,7 +1,7 @@
 
 #' @import ggplot2
 #' @import GenomicFeatures
-#' @import GenomicRanges
+#' @rawNamespace import(GenomicRanges, except=c(subtract))
 #' @import yarrr
 #' @noRd
 get_gene_anno_plot_ori = function(
@@ -221,7 +221,6 @@ get_gene_anno_plot = memoise::memoise(get_gene_anno_plot_ori)
 #' @param col_pal_cn color palette for non-baseline copy number states
 #' @param scale_plot_yaxis Determine whether to scale the plot so that the lower bound of the y-axis is set to the lesser value between 0 and the minimum data value. (Default : TRUE)
 #'
-#' @import glue
 #' @import yarrr
 #' @import memoise
 #' @importFrom grDevices axisTicks axisTicks col2rgb colorRampPalette palette rainbow rgb
@@ -546,9 +545,8 @@ plot_pileUp_multisample = function(
 #' @return A ComplexHeatmap Heatmap List object vertically stacked
 #' @export
 #'
-#' @import magrittr
+#' @rawNamespace import(magrittr, except=c(subtract))
 #' @import ComplexHeatmap
-#' @import circlize
 #' @import scales
 #'
 #' @examples
@@ -673,11 +671,11 @@ integrative_heatmap <- function(
   if(class(col_x_scaled)!="function"){
     if(col_x_scaled[1]=="auto"){
       LQ_Smin = X_scaled_log2p1 %>% apply(2,min) %>% quantile(0.20)
-      median = X_scaled_log2p1 %>% median
+      MED = X_scaled_log2p1 %>% median
       UQ_Smax = X_scaled_log2p1 %>% apply(2,max) %>% quantile(0.95)
       # min_Smax = X_scaled_log2p1 %>% apply(2,\(x) c(min(x),max(x))) %>% .[2,] %>% min # min of sample max
 
-      cntr = median
+      cntr = MED
       col_x_scaled =
         scales::viridis_pal(option="turbo")(11) %>%
         circlize::colorRamp2(

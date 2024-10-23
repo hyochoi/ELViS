@@ -9,7 +9,7 @@
 #' @return ggplot2 object
 #' @export
 #' @import ggplot2
-#' @import glue
+#' @rawNamespace import(glue, except=c(trim))
 #' @import stringr
 #' @import scales
 #' @import rmarkdown
@@ -266,11 +266,11 @@ get_normalized_data = function(X,q.cutoff=4){
 #' @return a list containing updated data
 #' @import parallel
 #' @import segclust2d
-#' @import circlize
+#' @rawNamespace import(circlize, except=c(degree))
 #' @import jcolors
 #' @import nord
 #' @import wesanderson
-#' @import zoo
+#' @rawNamespace import(zoo, except=c(index,yearmon,yearqtr,"index<-"))
 #' @noRd
 update_reference_segments = function(normalized_data,cores=10L){
 
@@ -1011,7 +1011,6 @@ run_ELViS =
 #' @param reduced_output logical indicating whether to return only reduced output
 #'
 #' @return list containing ELViS run results
-#' @import glue
 #' @noRd
 run_ELViS_core = function(X,N_cores=min(10,parallel::detectCores())
                             # ,q.cutoff=4
@@ -1260,8 +1259,7 @@ run_ELViS_core = function(X,N_cores=min(10,parallel::detectCores())
 #'
 #' @return a integer vector indicating new baseline index for each sample
 #' @export
-#' @import dplyr
-#' @import glue
+#' @rawNamespace import(dplyr, except=c(as_data_frame,between,collapse,desc,first,groups,intersect,last,setdiff,union))
 #'
 #' @examples
 #'

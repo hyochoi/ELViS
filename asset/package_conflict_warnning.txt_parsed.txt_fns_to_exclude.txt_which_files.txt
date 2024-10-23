@@ -1,0 +1,24 @@
+../R/main_functions.R:#' @import glue
+../R/main_functions.R:#' @import circlize
+../R/main_functions.R:#' @import zoo
+../R/main_functions.R:#' @import glue
+../R/main_functions.R:#' @import dplyr
+../R/main_functions.R:#' @import glue
+../R/main.R:#' @import zoo
+../R/main.R:#' @import zoo
+../R/main.R:#' @import igraph
+../R/Plotting.R:#' @import GenomicRanges
+../R/Plotting.R:#' @import glue
+../R/Plotting.R:#' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd
+../R/Plotting.R:#' @import magrittr
+../R/Plotting.R:#' @import circlize
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import data.table
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import data.table
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import Rsamtools
+../R/Process_Bam.R:#' @import IRanges
