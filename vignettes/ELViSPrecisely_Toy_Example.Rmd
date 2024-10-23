@@ -104,11 +104,19 @@ bam reading example
 # 
 # if (nzchar(chk) && chk == "TRUE") {
     # use 2 cores in CRAN/Travis/AppVeyor
-    N_cores <- 2L
+    
 # } else {
 #     # use all cores in devtools::test()
 #     N_cores <- min(10,parallel::detectCores())
 # }
+
+
+ os_name = Sys.info()["sysname"]
+if( os_name == "Windows" ){
+  N_cores <- 1L
+}else{
+  N_cores <- 2L
+}
 
  # = 4L
 
