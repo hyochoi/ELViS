@@ -220,7 +220,7 @@ get_depth_matrix_Rsamtools =
 #' @noRd
 get_depth_Rsamtools =
   function(bam_fn,scanBamParam,pileupParam){
-    pileup(bam_fn, scanBamParam=paramScanBam,pileupParam = paramPileup)$count
+    pileup(bam_fn, scanBamParam=scanBamParam,pileupParam = pileupParam)$count
   }
 
 

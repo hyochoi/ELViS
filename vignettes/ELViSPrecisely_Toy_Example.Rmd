@@ -40,11 +40,11 @@ Load required libraries.
 
 ```{r setup}
 
-# 
+
 # chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
 # 
 # if (nzchar(chk) && chk == "TRUE") {
-    # use 2 cores in CRAN/Travis/AppVeyor
+# # use 2 cores in CRAN/Travis/AppVeyor
     library(ELViS)
 # } else {
 #     library(devtools)
