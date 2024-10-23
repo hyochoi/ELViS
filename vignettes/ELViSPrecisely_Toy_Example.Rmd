@@ -40,17 +40,17 @@ Load required libraries.
 
 ```{r setup}
 
-
-chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-
-if (nzchar(chk) && chk == "TRUE") {
+# 
+# chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+# 
+# if (nzchar(chk) && chk == "TRUE") {
     # use 2 cores in CRAN/Travis/AppVeyor
     library(ELViS)
-} else {
-    library(devtools)
-    document()
-    load_all()
-}
+# } else {
+#     library(devtools)
+#     document()
+#     load_all()
+# }
 
 library(dplyr)
 library(glue)
@@ -98,17 +98,17 @@ target_virus_name = "gi|333031|lcl|HPV16REF.1|"
 bam reading example
 
 ```{r}
-
-
-chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-
-if (nzchar(chk) && chk == "TRUE") {
+# 
+# 
+# chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
+# 
+# if (nzchar(chk) && chk == "TRUE") {
     # use 2 cores in CRAN/Travis/AppVeyor
     N_cores <- 2L
-} else {
-    # use all cores in devtools::test()
-    N_cores <- min(10,parallel::detectCores())
-}
+# } else {
+#     # use all cores in devtools::test()
+#     N_cores <- min(10,parallel::detectCores())
+# }
 
  # = 4L
 
