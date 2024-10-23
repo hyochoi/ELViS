@@ -3,7 +3,6 @@
 #' @import GenomicFeatures
 #' @import GenomicRanges
 #' @import yarrr
-#' @import txdbmaker
 #' @noRd
 get_gene_anno_plot_ori = function(
     gff3_fn,
