@@ -279,6 +279,73 @@ use_git()
 ```
 
 
+# find and remove unused packages
+```{r}
+
+library(devtools)
+load_all()
+
+sessn = sessionInfo()
+loaded_packages <- sessn$otherPkgs
+package_names <- unique(c(names(sessn$otherPkgs),names(sessn$loadedOnly)))
+
+package_names
+
+
+
+package_name <- "ELViS"  # replace with actual package name
+
+# List all objects in the package namespace
+all_objects <- ls(getNamespace(package_name))
+
+# Filter out only functions
+package_functions <- all_objects[sapply(all_objects, function(x) is.function(get(x, envir = getNamespace(package_name))))]
+
+# Print the list of functions
+print(package_functions)
+
+
+codetools::findGlobals(gene_cn_heatmaps,
+                       merge = FALSE)
+find("makeGRangesFromDataFrame")
+
+used_globals =
+  package_functions %>% 
+  lapply(\(fn){
+    codetools::findGlobals(fn,
+                       merge = FALSE)$functions
+
+  }) %>% unlist %>% unique
+
+source_global = 
+  used_globals %>%
+  lapply(find) %>%
+  unlist
+
+source_global = source_global %>% unique %>% gsub("^package:","",.) %>% sort
+
+imported_packages = 
+read.table("../NAMESPACE")$V1 %>%
+  grep("import",.,value=TRUE) %>%
+  str_split("[)(,)]") %>%
+  sapply(\(x) x[2]) %>% unique
+
+setdiff(imported_packages,source_global)
+
+used_globals
+
+unused_packages <- package_names[!sapply(package_names, function(pkg) {
+  any(grepl(paste0("^", pkg, "::"), used_globals))
+})]
+
+loaded_packages <- sessionInfo()$otherPkgs
+
+
+
+```
+
+
+
 
 ```{bash}
 cd .. 

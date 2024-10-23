@@ -1,3 +1,5 @@
+#' @import rmarkdown
+
 #' Sample filtering threshold examination plot.
 #'
 #' @param mtrx Matrix or data.frame. Rows are positions and columns are samples.
