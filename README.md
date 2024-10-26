@@ -15,8 +15,12 @@ An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome
 </p>
 
 ## DESCRIPTION
+* Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach.
 
-Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. Provides publish-ready figures, including histograms of read depths, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing multiple types of data with integrative clustering of samples.
+* Provides publish-ready figures, including
+    - histograms of read depths
+    - coverage line plots over viral genome annotated with copy number change events and viral genes
+    - heatmaps showing multiple types of data with integrative clustering of samples.
 
 
 ## INSTALLATION
