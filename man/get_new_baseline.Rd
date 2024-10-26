@@ -20,4 +20,10 @@ Get new baselines according to criteria user designates
 \examples{
 
 # its usage example is given in vignette in detail
+
+data(ELViS_toy_run_result)
+result <- ELViS_toy_run_result
+
+get_new_baseline(result,mode="longest")
+
 }

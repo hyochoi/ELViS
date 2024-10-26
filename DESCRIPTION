@@ -13,10 +13,13 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 VignetteBuilder: knitr
-biocViews: software
-LazyData: true
+biocViews: CopyNumberVariation, Coverage, GenomicVariation, BiomedicalInformatics, Sequencing, Normalization, Visualization, Clustering
+LazyData: false
+BugReports: https://github.com/hyochoi/ELViS/issues
+URL: https://github.com/hyochoi/ELViS
 Imports: 
     circlize,
+    combinat,
     ComplexHeatmap,
     data.table,
     dplyr,
@@ -28,22 +31,21 @@ Imports:
     grDevices,
     igraph,
     IRanges,
-    jcolors,
     knitr,
     magrittr,
     memoise,
-    nord,
     parallel,
     patchwork,
     reticulate,
-    rmarkdown,
-    Rsamtools,
     scales,
     segclust2d,
     stats,
     stringr,
     utils,
     uuid,
-    wesanderson,
-    yarrr,
     zoo
+Depends: R (>= 4.3)
+Suggests: 
+ reticulate,
+ Rsamtools,
+ BiocManager

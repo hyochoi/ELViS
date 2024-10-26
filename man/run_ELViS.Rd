@@ -7,8 +7,7 @@
 run_ELViS(
   X,
   N_cores = min(10L, parallel::detectCores()),
-  reduced_output = TRUE,
-  verbose = FALSE
+  reduced_output = TRUE
 )
 }
 \arguments{
@@ -17,8 +16,6 @@ run_ELViS(
 \item{N_cores}{THe number of cores to use (Default : \code{min(10L,parallel::detectCores())})}
 
 \item{reduced_output}{logical indicating whether to return only reduced output}
-
-\item{verbose}{logical indicating whether to print out messages for debugging}
 }
 \value{
 list containing ELViS run results
@@ -28,5 +25,10 @@ Run ELViS using input raw depth matrix
 }
 \examples{
 
-# its usage example is given in vignette in detail
+data(mtrx_samtools_reticulate)
+th<-50
+filtered_mtrx <- filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+
+result <- run_ELViS(filtered_mtrx[,seq_len(5)],N_cores=1L)
+
 }

@@ -120,6 +120,9 @@ if( os_name == "Windows" ){
 
  # = 4L
 
+tmpdir="./tmpdir"
+dir.create(tmpdir,recursive = TRUE)
+
 system.time({
 mtrx_samtools_reticulate__example = 
   get_depth_matrix(
@@ -127,11 +130,14 @@ mtrx_samtools_reticulate__example =
     ,mode = "samtools_reticulate"
     ,N_cores = N_cores
     ,min_mapq = 30
-    ,tmpdir="tmpdir"
+    ,tmpdir=tmpdir
     ,condaenv = "env_samtools"
     ,conda = "auto"
+    ,remove_tmpdir = TRUE
   )
 })
+
+unlink(tmpdir,recursive=TRUE)
 
 ```
 
@@ -196,7 +202,7 @@ mtrx_samtools =
 # base_resol_depth = mtrx_samtools
 }
 
-use_data(mtrx_samtools_reticulate)
+# use_data(mtrx_samtools_reticulate)
 
 ```
 
@@ -477,6 +483,17 @@ d
 b
 
 c
+
+
+
+# 4. sessionInfo
+
+```{r}
+sessionInfo()
+```
+
+
+
 
 ## R Markdown
 

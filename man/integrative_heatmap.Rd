@@ -9,7 +9,7 @@ integrative_heatmap(
   result,
   gff3_fn,
   exclude_genes,
-  col_pal_gene = piratepal(palette = "info2"),
+  col_pal_gene = col_yarrr_info2,
   col_cn = colorRamp2(c(0.5, 1, 1.5), c(muted("blue"), "white", muted("red"))),
   col_y = colorRamp2(c(0.5, 1, 2), c(muted("blue"), "white", muted("red"))),
   col_z = colorRamp2(c(-4, 0, 4), c(muted("blue"), "white", muted("red"))),
@@ -26,6 +26,10 @@ integrative_heatmap(
 \item{X_raw}{Raw depth matrix}
 
 \item{result}{Run result}
+
+\item{gff3_fn}{gene annotation file name}
+
+\item{exclude_genes}{name of genes to exclude from the annotation track (Default : NULL)}
 
 \item{col_pal_gene}{color palette for gene colors}
 
@@ -59,31 +63,31 @@ Plot heatmaps based on simple integrative clustering of multiple matrices
 
 
 # gff3 gene model file
-package_name = "ELViS"
-gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+package_name <- "ELViS"
+gff3_fn <- system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
 
 # loading precalculated depth matrix
 data(mtrx_samtools_reticulate)
 
 # threshold
-th = 50
+th <- 50
 
 # filtered matrix
-base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+base_resol_depth <- filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
 
 # viral load data
 data(total_aligned_base__host_and_virus)
-viral_load = (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
+viral_load <- (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
 
 # load ELViS run result
 data(ELViS_toy_run_result)
-result = ELViS_toy_run_result
+result <- ELViS_toy_run_result
 
 # genes to exclude from plotting
-exclude_genes = c("E6*","E1^E4","E8^E2")
+exclude_genes <- c("E6*","E1^E4","E8^E2")
 
 # heatmap based on integrative clustering
-integ_ht_result = integrative_heatmap(
+integ_ht_result <- integrative_heatmap(
   X_raw = base_resol_depth,
   result = result,
   gff3_fn = gff3_fn,

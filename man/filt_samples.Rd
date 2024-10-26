@@ -9,7 +9,9 @@ filt_samples(mtrx, th = 50, smry_fun = max)
 \arguments{
 \item{mtrx}{matrix or data.frame. Rows are positions and columns are samples.}
 
-\item{th}{Numeric. Sample filtering threshold}
+\item{th}{Sample filtering threshold (Default : 50)}
+
+\item{smry_fun}{function to generate summary value of samples, which is used for filtering. (Default : \code{max})}
 }
 \value{
 matrix or data.frame. data matrix with low depth samples filtered out.
@@ -19,6 +21,6 @@ Filtering samples based on summary statistic
 }
 \examples{
 data(mtrx_samtools_reticulate)
-th=50
-filtered_mtrx = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+th<-50
+filtered_mtrx <- filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
 }

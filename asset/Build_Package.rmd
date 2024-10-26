@@ -87,6 +87,7 @@ sync_namespace_to_description <- function(namespace_file = "NAMESPACE",force_rew
     desc_file$set_version("0.99.0")
     desc_file$set("VignetteBuilder", "knitr")
     desc_file$set("biocViews", biocViews_type)
+    desc_file$set("LazyData", "false")
     desc_file$del_author()
     run_license_addition = TRUE
   }else{
@@ -248,9 +249,51 @@ DESCRIPTION_action = function(func,...){
 
 ```{r}
 document()
-setwd("..");sync_namespace_to_description()
-# setwd("..");sync_namespace_to_description(force_rewrite = TRUE)
+# pick terms from https://bioconductor.org/packages/devel/BiocViews.html
+target_biocviews =
+  c("CopyNumberVariation"
+    ,"Coverage"
+    ,"GenomicVariation"
+    ,"BiomedicalInformatics"
+    ,"Sequencing"
+    ,"Normalization"
+    ,"Visualization"
+    ,"Clustering")
 
+setwd("..");sync_namespace_to_description()
+# setwd("..");sync_namespace_to_description(biocViews_type=paste(target_biocviews,collapse = ", "),force_rewrite = TRUE)
+
+# setwd("..")
+DESCRIPTION_action(
+  set,
+  "Depends", "R (>= 4.3)"
+)
+
+# setwd("..");DESCRIPTION_action(
+#   set,
+#   "Depends", "R (>= 2.10)"
+# )
+
+# importing packages should be less than 20 to prevent any notes
+# setwd("..")
+pkgs_suggest = c("reticulate","Rsamtools","BiocManager")
+DESCRIPTION_action(
+  set_list,
+  "Suggests",
+  paste0("\n",paste(pkgs_suggest,collapse=",\n"))
+  )
+# setwd("..")
+DESCRIPTION_action(
+  set,
+  "BugReports", "https://github.com/hyochoi/ELViS/issues"
+)
+# setwd("..")
+DESCRIPTION_action(
+  set,
+  "URL", "https://github.com/hyochoi/ELViS"
+)
+
+# setwd("..")
 DESCRIPTION_action(
   add_author,
   given = "Hyo Young",family = "Choi",email = "hyoyoung.choi@uthsc.edu",role = c("aut"))
@@ -263,10 +306,13 @@ DESCRIPTION_action(
   add_author,
   given = "D. Neil",family = "Hayes",email = "Neil.Hayes@uthsc.edu",role = c("aut","fnd"))
 
+# ❯ checking data for ASCII and uncompressed saves ... WARNING
+#     Warning: package needs dependence on R (>= 2.10)
+
 # library(BiocCheck)
 setwd("../../testRpackage/asset/bioccheck/BiocCheck");load_all()
 setwd("..");BiocCheck()
-`check()
+check()
 # setwd("..")
   BiocCheck::BiocCheck(
       # dir('check', 'tar.gz$', full.names = TRUE),

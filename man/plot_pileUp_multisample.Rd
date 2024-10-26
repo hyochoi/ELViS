@@ -14,9 +14,9 @@ plot_pileUp_multisample(
   annot_margin = 0.01,
   arrow_spacing = 0.05,
   geme_name_space = 0.5,
-  col_pal = piratepal(palette = "info2"),
+  col_pal = col_yarrr_info2,
   col_cn_baseline = "#708C98",
-  col_pal_cn = piratepal(palette = "info2")[-5],
+  col_pal_cn = col_yarrr_info2[-5],
   exclude_genes = NULL,
   annot_plot_ratio = 0.3
 )
@@ -40,11 +40,11 @@ plot_pileUp_multisample(
 
 \item{geme_name_space}{the height of white space reserved for gene names in the annotaiton. (Default : \code{0.5})}
 
-\item{col_pal}{gene color palette (Default : \code{piratepal(palette = "info2")})}
+\item{col_pal}{gene color palette}
 
 \item{col_cn_baseline}{color for baseline (Default : \code{"#708C98"})}
 
-\item{col_pal_cn}{color palette for non-baseline copy number states (Default : \code{piratepal(palette = "info2")[-5]})}
+\item{col_pal_cn}{color palette for non-baseline copy number states}
 
 \item{exclude_genes}{name of genes to exclude from the annotation track (Default : NULL)}
 
@@ -59,23 +59,23 @@ Get a list of pile-up plots over multiple samples
 \examples{
 
 # gff3 gene model file
-package_name = "ELViS"
-gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+package_name <- "ELViS"
+gff3_fn <- system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
 
 # loading precalculated depth matrix
 data(mtrx_samtools_reticulate)
 
 # threshold
-th = 50
+th <- 50
 
 # filtered matrix
-base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
+base_resol_depth <- filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
 
 data(ELViS_toy_run_result)
-result = ELViS_toy_run_result
+result <- ELViS_toy_run_result
 
 # get line plots for shape-change samples
-gg_lst_x =
+gg_lst_x <-
 plot_pileUp_multisample(
   result = result,
   X_raw = base_resol_depth,
@@ -83,7 +83,7 @@ plot_pileUp_multisample(
   gff3 = gff3_fn,
   baseline=1,
   exclude_genes = c("E6*","E1^E4","E8^E2"),
-  target_indices = result$final_call$cnv_samples[1:3]
+  target_indices = result$final_call$cnv_samples[seq_len(3)]
   )
 
 gg_lst_x[[1]]

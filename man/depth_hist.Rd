@@ -25,7 +25,7 @@ Sample filtering threshold examination plot.
 }
 \examples{
 data(mtrx_samtools_reticulate)
-th = 50
+th <- 50
 depth_hist(mtrx_samtools_reticulate,th=th,smry_fun=max)
 depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = quantile,prob=0.95)
 depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = mean)

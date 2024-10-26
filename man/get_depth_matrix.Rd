@@ -15,6 +15,7 @@ get_depth_matrix(
   modules = NULL,
   envs = NULL,
   tmpdir = "tmpdir",
+  remove_tmpdir = FALSE,
   samtools = NULL,
   condaenv = "env_samtools",
   conda = "auto"
@@ -41,6 +42,8 @@ get_depth_matrix(
 
 \item{tmpdir}{(samtools) Temporary file directory (Default : \code{"tmpdir"})}
 
+\item{remove_tmpdir}{remove temporary directory after processing is done. Setting to TRUE is not recommended if you are running multiple processes. (Default : FALSE)}
+
 \item{samtools}{(samtools) Absolute path to samtools executable (Default : NULL)}
 
 \item{condaenv}{(samtools_reticulate) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : \code{"env_samtools"})}
@@ -55,19 +58,25 @@ Generate a read depth matrix of positions x samples from input BAM files list
 }
 \examples{
 
-package_name = "ELViS"
-# The name of the target virus in the reference sequence FASTA file used for alignment. Can be check by samtools view -H input.bam
-target_virus_name = "gi|333031|lcl|HPV16REF.1|"
+package_name <- "ELViS"
+
+# The name of the target virus
+# in the reference sequence FASTA file used for alignment.
+# Can be check by samtools view -H input.bam
+target_virus_name <- "gi|333031|lcl|HPV16REF.1|"
 
 # get bam file pathes
-ext_path = system.file("extdata",package = package_name)
-bam_files = list.files(ext_path,full.names = TRUE,pattern = "bam$")
+ext_path <- system.file("extdata",package = package_name)
+bam_files <- list.files(ext_path,full.names = TRUE,pattern = "bam$")
 
 # number of threads to use
-N_cores = 2L
+N_cores <- 2L
 
 # get read depth matrix
-mtrx_samtools_reticulate =
+tmpdir<-"./tmpdir"
+dir.create(tmpdir,recursive = TRUE)
+
+mtrx_samtools_reticulate <-
  get_depth_matrix(
   bam_files = bam_files,target_virus_name = target_virus_name
  ,mode = "samtools_reticulate"
@@ -76,6 +85,8 @@ mtrx_samtools_reticulate =
  ,tmpdir="tmpdir"
  ,condaenv = "env_samtools"
  ,conda = "auto")
+
+ unlink(tmpdir,recursive=TRUE)
 
 
 }
