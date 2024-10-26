@@ -6,7 +6,7 @@
   <br>
 </h1>
 
-An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome ***S***egments Precisely at Base-Resolution.
+An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome ***S***egments Using Base-Resolution Read Depth Profile.
 
 <p align="center">
   <a href="#description">DESCRIPTION</a> •
