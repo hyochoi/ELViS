@@ -11,7 +11,7 @@ An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome
 <p align="center">
   <a href="#description">DESCRIPTION</a> •
   <a href="#installation">INSTALLATION</a> •
-  <a href="#how-to-use">How To Use</a> •
+  <a href="#how-to-use">HOW TO USE</a> •
 </p>
 
 ## DESCRIPTION
@@ -43,6 +43,6 @@ devtools::install_github("https://github.com/hyochoi/ELViS.git")
 ```
 
 
-## How To Use
+## HOW TO USE
 
 Please refer to vignette.
