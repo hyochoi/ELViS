@@ -6,7 +6,7 @@
   <br>
 </h1>
 
-<h4 align="center">An R Package for <u><b>E</b></u>stimating Copy Number <u><b>L</b></u>evels of <u><b>Vi</b></u>ral Genome <u><b>S</b></u>egments Precisely at Base-Resolution.</h4>
+An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome ***S***egments Precisely at Base-Resolution.
 
 <p align="center">
   <a href="#description">DESCRIPTION</a> •
