@@ -26,7 +26,6 @@ An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome
 ## INSTALLATION
 
 ```
-
 # Install BiocManager if not already
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
