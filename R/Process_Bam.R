@@ -7,7 +7,6 @@ check_and_install_conda <- function() {
 
   # Check if Conda is installed
   conda_path <- tryCatch(reticulate::conda_binary(), error = function(e) NULL)
-  #conda_path <- conda_binary()
 
   if (is.null(conda_path)) {
     message("Conda is not installed. Installing Miniconda...")
@@ -113,10 +112,8 @@ get_depth_matrix <-
 
       # check if reticulate is installed and install if not
       if (!requireNamespace("reticulate", quietly = TRUE)) {
-        # utils::install.packages("reticulate")
         stop("R Package 'reticulate' does not exist. Please install it by executing following command.\n\nutils::install.packages('reticulate')")
       }
-      # require("reticulate")
 
       # Check if conda was installed and install if not
       if(conda == "auto"){
@@ -132,13 +129,6 @@ get_depth_matrix <-
       }else if(!dir.exists(env_dir)){
         reticulate::conda_create(envname = condaenv,channel = c("conda-forge","bioconda"),packages = "samtools",conda = conda)
       }
-      # use_condaenv(condaenv = condaenv, conda = conda)
-      # reticulate::conda_list()
-      # reticulate::condaenv_exists(envname = condaenv,conda="auto")
-      # reticulate::co_exists(envname = condaenv,conda="auto")
-
-      #get paths
-      # reticulate::env
 
       envs <- c(
         PATH = paste(env_dir,"bin",sep="/"),
@@ -208,10 +198,10 @@ get_depth_matrix_Rsamtools <-
     bam <- Rsamtools::BamFile(bam_files[1])
     bam_header <- Rsamtools::scanBamHeader(bam)
     virus_genome_size <- bam_header$targets[[target_virus_name]]
-    # gep depth
 
     target_grng <-
-      GRanges(target_virus_name, IRanges(start = 1, end = virus_genome_size))
+      data.frame(chr=target_virus_name,start=1,end=virus_genome_size) %>%
+      makeGRangesFromDataFrame()
     paramScanBam <- Rsamtools::ScanBamParam(which=target_grng)
 
     paramPileup <-
@@ -234,14 +224,12 @@ get_depth_matrix_Rsamtools <-
 
 
 
-    # system.time({
     depth_mtrx <-
       mclapply(X = bam_files,
                mc.cores = N_cores,
                FUN = get_depth_Rsamtools,
                scanBamParam=paramScanBam,pileupParam = paramPileup) %>%
       do.call(cbind, .)
-    # })
     return(depth_mtrx)
   }
 
@@ -277,7 +265,6 @@ get_depth_Rsamtools <-
 #' @return return TRUE if input string is clear and FALSE if not.
 #' @noRd
 sanity_check <- function(s){
-  # print(s)
 
   if(is.null(s)){
     return(TRUE)
@@ -286,14 +273,12 @@ sanity_check <- function(s){
   dangerous_patterns <- c(
     "rm\\s+-rf",    # Recursive delete
     "mv\\s+.*\\s+/", # File move
-    # "[;&|><`$]",     # Command chaining and shell control
     "[;&><`]",     # Command chaining and shell control
     "sudo",         # Privileged command execution
     "chmod",        # File permission changes
     "chown"         # File ownership changes
   )
 
-  # if(grepl("[;&|`]",s)){  stop("The input contains unsanitary commands.")  }
   if (any(grepl(paste(dangerous_patterns, collapse = "|"), s))) {
     stop(glue("Dangerous command detected! : \n{s}"))
   }else if(grepl("[$]",s)){
@@ -313,7 +298,6 @@ sanity_check <- function(s){
 #' check if dollar signs were improperly used if any
 #' @noRd
 detect_dollar_unusual <- function(s){
-  # s = "${PATH} $ $ $PATH"
   all_dollars <- str_extract_all(s,"[$]",simplify = TRUE)
   allowed_patterns <- str_extract_all(s,'[$][{][^{}]+[}]|"[$][{][^{}]+[}]"',simplify = TRUE)
   if(length(all_dollars)!=length(allowed_patterns)){
@@ -340,13 +324,12 @@ detect_unquoted_pipe <- function(s) {
   for (part in parts) {
     # Alternate the flag (quoted/unquoted)
     is_quoted <- !is_quoted
-    # print(part)
 
     # If the part is unquoted, check for dangerous patterns
     if (!is_quoted) {
       # Check for [ or ] or | in the unquoted part
       if (grepl("[|]", part)) {
-        # print("Dangerous pattern detected!")
+        # Dangerous pattern detected!
         return(TRUE)
       }
     }
@@ -370,15 +353,6 @@ get_bash_script_base <- function(modules=NULL,envs=NULL,debug_mode=FALSE){
   all_strings <- c(modules,envs,names(envs))
   for(s in all_strings){  sanity_check(s)  }
 
-  #   if(debug_mode){
-  #     script =
-  #       "#!/bin/bash
-  # set -exo pipefail"
-  #   }else{
-  #     script =
-  #       "#!/bin/bash
-  # set -eo pipefail"
-  #   }
 
   if(debug_mode){
     script <-
@@ -406,11 +380,14 @@ set -e"
 
     env_string <-
       names(envs) |>
-      sapply(\(env_names){
+      vapply(\(env_names){
         env_colon_concat <- paste(envs[[env_names]],collapse = ":")
         glue('export {env_names}="${{{env_names}}}":{env_colon_concat}')
-      }) |>
+      },""
+      ) |>
       paste(collapse="\n")
+
+
     script <- glue("{script}
                   {env_string}") |> as.character()
   }
@@ -446,10 +423,11 @@ run_samtools <- function(
   if(is.null(samtools)){
     message("The path to samtools not provided.")
     samtools_path <-
-      system2(as.character(glue(
-        '{bash_script_base}
-        which samtools'
-      )),intern=TRUE)
+      system2(
+        command = "which"
+        ,args = "samtools"
+        ,env = paste0(bash_script_base,"\n")
+        ,stdout=TRUE)
 
     if( !( samtools_path |> attr("status") |> is.null() ) ){
       stop("samtools is not in the PATH. Please provide paths to samtools and required environment variables if necessary.")
@@ -459,25 +437,24 @@ run_samtools <- function(
     samtools <- samtools_path
   }
 
-  script <-
-    glue("{bash_script_base}
-         {samtools} {command}") |>
-    as.character()
+  args <- command
+  output <- ""
 
   if(depth_count_only){
-    script <-
-      glue("{script} | cut -f 3") |>
-      as.character()
+    args <- c(args,"| cut -f 3")
   }
 
   if(!is.null(output_name)){
-    script <-
-      glue("{script} > {output_name}" ) |>
-      as.character()
+    output <- output_name
   }
 
-  # sanity_check(script)
-  system2(script)
+
+  system2(
+    command = samtools
+    ,args = args
+    ,env = paste0(bash_script_base,"\n")
+    ,stdout = output
+  )
 
 }
 
@@ -489,7 +466,7 @@ get_depth_matrix_samtools <-
     bam_files
     ,target_virus_name
     #common options
-    ,N_cores = detectCores(),min_mapq=30,min_base_quality=0
+    ,N_cores = min(10,detectCores()),min_mapq=30,min_base_quality=0
     #samtools specific options
     ,modules=NULL,envs=NULL
     ,tmpdir="tmpdir"
@@ -499,9 +476,7 @@ get_depth_matrix_samtools <-
     bash_script_base <-
       get_bash_script_base(modules=modules,envs=envs)
 
-    # system.time({
     depth_mtrx <-
-      # lapply(
       mclapply(mc.cores = N_cores,
                X = seq_along(bam_files)
                ,FUN = get_depth_samtools
@@ -514,7 +489,6 @@ get_depth_matrix_samtools <-
                ,samtools=samtools
       ) %>%
       do.call(cbind, .)
-    # })
     return(depth_mtrx)
   }
 
@@ -548,11 +522,9 @@ get_depth_samtools <-
       depth_count_only = TRUE
     )
 
-    # depth_bed_fn = "abra.sort.dedup_HPV16_samtoolsCallFromR.bam.depth.bed"
     depth_bed <- unlist(read.csv(depth_bed_fn,sep = "\t",header=FALSE),use.names = FALSE)
-    rm_cmd <- glue("rm {depth_bed_fn}")
-    sanity_check(rm_cmd)
-    system2(rm_cmd)
+    sanity_check(depth_bed_fn)
+    system2(command = "rm",args = depth_bed_fn)
 
     return(depth_bed)
   }
@@ -595,14 +567,6 @@ get_depth_matrix_gp <-
     ,condaenv = "env_samtools"
     ,conda = "auto"
   ){
-    # coord_lst =
-    #   coord %>%
-    #   str_replace_all(",","") %>%
-    #   str_split(":|-",simplify = TRUE) %>%
-    #   as.list() %>%
-    #   structure(names=c("chr","start","end")) %>%
-    #   within({start = as.numeric(start);end = as.numeric(end)})
-    # custom samtools not available for windows
     os_name <- Sys.info()["sysname"]
     if( os_name == "Windows" ){
       if(mode != "Rsamtools"){
@@ -615,11 +579,9 @@ get_depth_matrix_gp <-
     if(mode == "samtools_reticulate"){
 
       if (!requireNamespace("reticulate", quietly = TRUE)) {
-        #utils::install.packages("reticulate")
         stop("R Package 'reticulate' does not exist. Please install it by executing following command.\n\nutils::install.packages('reticulate')")
       }
 
-      # require("reticulate")
 
 
       # Check if environment exist and create one if not
@@ -641,7 +603,6 @@ get_depth_matrix_gp <-
     if(mode == "Rsamtools"){
 
       # check if Rsamtools is installed and install if not
-      # pkg = "Rsamtools"
       if (!requireNamespace("Rsamtools", quietly = TRUE)) {
         stop("R Package 'reticulate' does not exist. Please install it by executing following command.
 
@@ -650,7 +611,6 @@ if (!requireNamespace('BiocManager', quietly = TRUE))
 
 BiocManager::install('Rsamtools')")
       }
-      # require("Rsamtools")
 
       out_mtrx <-
         get_depth_matrix_Rsamtools_gp(
@@ -695,11 +655,6 @@ get_depth_matrix_Rsamtools_gp <-
     min_base_quality=0
   ){
 
-    # # viral genome size
-    # bam <- BamFile(bam_files[1])
-    # bam_header <- scanBamHeader(bam)
-    # virus_genome_size = bam_header$targets[[target_virus_name]]
-    # # gep depth
 
     coord_lst <-
       coord %>%
@@ -711,7 +666,8 @@ get_depth_matrix_Rsamtools_gp <-
 
 
     target_grng <-
-      GRanges(coord_lst$chr, IRanges(start = coord_lst$start, end = coord_lst$end))
+      data.frame(chr=coord_lst$chr,start=coord_lst$start,end=coord_lst$end) %>%
+      makeGRangesFromDataFrame()
     paramScanBam <- Rsamtools::ScanBamParam(which=target_grng)
 
     paramPileup <-
@@ -734,14 +690,12 @@ get_depth_matrix_Rsamtools_gp <-
 
 
 
-    # system.time({
     depth_mtrx <-
       mclapply(X = bam_files,
                mc.cores = N_cores,
                FUN = get_depth_Rsamtools,
                scanBamParam=paramScanBam,pileupParam = paramPileup) %>%
       do.call(cbind, .)
-    # })
     return(depth_mtrx)
   }
 
@@ -767,7 +721,6 @@ get_depth_matrix_samtools_gp <-
       get_bash_script_base(modules=modules,envs=envs)
 
 
-    # system.time({
     depth_mtrx <-
       mclapply(X = seq_along(bam_files)
                ,mc.cores = N_cores
@@ -781,7 +734,6 @@ get_depth_matrix_samtools_gp <-
                ,samtools=samtools
       ) %>%
       do.call(cbind, .)
-    # })
     return(depth_mtrx)
   }
 
@@ -816,7 +768,6 @@ coord_to_lst <- function(coord){
 #' @param coord string in the form of "chr1:123-456" or "chr1:1,234-5,678,912"
 #'
 #' @return GRanges object corresponding to the input coordinate string
-#' @rawNamespace import(IRanges, except=c(collapse,desc,intersect,median,quantile,sd,setdiff,shift,slice,trim,union))
 #' @export
 #'
 #' @examples
@@ -826,7 +777,9 @@ coord_to_lst <- function(coord){
 coord_to_grng <- function(coord){
   coord_lst <- coord_to_lst(coord)
 
-  grng <- GRanges(coord_lst$chr, IRanges(start = coord_lst$start, end = coord_lst$end))
+  grng <-
+    data.frame(chr=coord_lst$chr,start=coord_lst$start,end=coord_lst$end) %>%
+    makeGRangesFromDataFrame()
 
   return(grng)
 }
@@ -869,11 +822,9 @@ get_depth_samtools_gp <-
       depth_count_only <- TRUE
     )
 
-    # depth_bed_fn = "abra.sort.dedup_HPV16_samtoolsCallFromR.bam.depth.bed"
     depth_bed <- unlist(read.csv(depth_bed_fn,sep = "\t",header=FALSE),use.names = FALSE)
-    rm_cmd <- glue("rm {depth_bed_fn}")
-    sanity_check(rm_cmd)
-    system2(rm_cmd)
+    sanity_check(depth_bed_fn)
+    system2(command = "rm",args = depth_bed_fn)
 
     return(depth_bed)
   }

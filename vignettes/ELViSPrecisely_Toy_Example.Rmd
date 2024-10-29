@@ -20,9 +20,11 @@ knitr::opts_chunk$set(
 
 
 
-# 1. Introduction
+# 1. DESCRIPTION
 
-## 1.1 BaReSegCN for Finding Small CNVs Within Viral Genome
+## 1.1 R Package for Estimating Copy Number Levels of Viral Genome Segments Using Base-Resolution Read Depth Profile
+
+Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. Provides publish-ready figures, including histograms of read depths, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing multiple types of data with integrative clustering of samples.
 
 ------------------------------------------------------------------------
 
@@ -30,49 +32,37 @@ knitr::opts_chunk$set(
 
 ## 2.1 Environment Setup and Package Installation
 
-```{r}
+```{r,eval=FALSE}
+# Install BiocManager if not already
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
 
+# Install devtools if not already
+if (!requireNamespace("devtools", quietly = TRUE)) {
+    install.packages("devtools")
+}
+
+# Ensure repos includes both CRAN and Bioconductor repositories
+options(repos = BiocManager::repositories())
+devtools::install_github("https://github.com/hyochoi/ELViS.git")
 ```
 
-## 2.2 Loading Toy Examples
+## 2.2 Generate Raw Read Depth Matrix with Toy Examples
 
 Load required libraries.
 
 ```{r setup}
-
-
-# chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-# 
-# if (nzchar(chk) && chk == "TRUE") {
-# # use 2 cores in CRAN/Travis/AppVeyor
-    library(ELViS)
-# } else {
-#     library(devtools)
-#     document()
-#     load_all()
-# }
-
-library(dplyr)
-library(glue)
-library(stringr)
-# library(RPlotRNAseq)
-# library(SCISSOR)
-library(data.table)
+library(ELViS)
 library(ggplot2)
-library(Rsamtools)
-# library(GenomicAlignments)
-library(parallel)
-# library(GenomicFeatures)
-# library(GenomicRanges)
-library(patchwork)
+library(glue)
+library(dplyr)
 library(ComplexHeatmap)
 theme_set(theme_bw())
 ```
 
 
-
-
-Generate base-resolution read depth matrix from a list of bam files. Parallel package is used to read files swiftly.
+Prepare BAM file name vector.
 
 ```{r}
 analysis_dir = "~/ELViS"
@@ -86,31 +76,13 @@ data(toy_example,package = package_name)
 # get lust of bam file paths
 ext_path = system.file("extdata",package = package_name)
 bam_files = list.files(ext_path,full.names = TRUE,pattern = "bam$")
-# bam_files = paste(ext_path,toy_example$filename,sep="/")
-
-
-# the name of the reference viral sequence the reads were aligned to
-target_virus_name = "gi|333031|lcl|HPV16REF.1|"
 
 
 ```
 
-bam reading example
+Generate base-resolution read depth matrix from a list of BAM files. Parallel package is used to read BAM files fast.
 
 ```{r}
-# 
-# 
-# chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-# 
-# if (nzchar(chk) && chk == "TRUE") {
-    # use 2 cores in CRAN/Travis/AppVeyor
-    
-# } else {
-#     # use all cores in devtools::test()
-#     N_cores <- min(10,parallel::detectCores())
-# }
-
-
  os_name = Sys.info()["sysname"]
 if( os_name == "Windows" ){
   N_cores <- 1L
@@ -118,11 +90,15 @@ if( os_name == "Windows" ){
   N_cores <- 2L
 }
 
- # = 4L
 
+# the name of the reference viral sequence the reads were aligned to
+target_virus_name = "gi|333031|lcl|HPV16REF.1|"
+
+# temporary file directory
 tmpdir="./tmpdir"
 dir.create(tmpdir,recursive = TRUE)
 
+# generate read depth matrix
 system.time({
 mtrx_samtools_reticulate__example = 
   get_depth_matrix(
@@ -137,6 +113,7 @@ mtrx_samtools_reticulate__example =
   )
 })
 
+# remove temporary directory
 unlink(tmpdir,recursive=TRUE)
 
 ```
@@ -199,20 +176,17 @@ mtrx_samtools =
     ,modules="samtools/samtools_bcftools_1.20__bedtools_2.31.1"
   )
 })
-# base_resol_depth = mtrx_samtools
 }
 
-# use_data(mtrx_samtools_reticulate)
+use_data(mtrx_samtools_reticulate)
 
 ```
 
 
 
+## 2.3 Filtering Out Low Depth Samples
 
-
-Filter out low coverage sample and save depth matrix as RDS file for later reuse
-
-Determine sample filtering threshold using histogram and get filtered data matrix
+Determine sample filtering threshold using histogram and filter out low depth samples
 
 ```{r,fig.width=5,fig.height=3}
 # loading precalculated depth matrix
@@ -235,14 +209,11 @@ saveRDS(base_resol_depth,"~/base_resol_depth.rds")
 
 
 
-## 2.3 Run Pipeline
+## 2.4 Run ELViS using the Filtered Depth Matrix
+
+Running ELViS using the filtered read depth matrix(`base_resol_depth`).
 
 ```{r , echo=TRUE, eval=FALSE}
-# N_cores = 10
-# N_cores = min(4,detectCores())
-
-# save_dir = glue("{analysis_dir}/save_dir_toy")
-
 system.time({
   result = run_ELViS(
     X = base_resol_depth
@@ -252,28 +223,32 @@ system.time({
  
 })
 
-# usethis::use_data(result,overwrite = TRUE)
-# 
-# 
 ELViS_toy_run_result = result
 use_data(ELViS_toy_run_result)
 
-# 4min for 120 samples
-
-
+# 4min for 120 samples using 10 threads
 ```
 
-## 2.4 Plotting Figures
+## 2.5 Plotting Figures
+
+Prepare plotting data
 
 ```{r,fig.width=7,fig.height=5}
+# ELViS run result
 data(ELViS_toy_run_result)
 result = ELViS_toy_run_result
 
+# Directory where figures will be saved
 figure_dir = glue("{analysis_dir}/figures")
 dir.create(figure_dir)
-# give the gff3 file for the virus of your interest
-gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
 
+# give the gff3 file of the virus of your interest. Sequence name or chromosome name should match with that in the reference genome FASTA file.
+gff3_fn = system.file("extdata","HPV16REF_PaVE.gff",package = package_name)
+```
+
+Raw read depth profile line plots.
+
+```{r,fig.width=7,fig.height=5}
 # Plotting raw depth profile
 gg_lst_x = 
   plot_pileUp_multisample(
@@ -293,11 +268,14 @@ if(!SKIP){
   dev.off()
 }
 
+# an example of raw read depth line plot
 print(gg_lst_x[[1]])
 ```
+
 You can adjust baseline after examining depth profile plots.
 
 ```{r,fig.width=7,fig.height=5}
+# set the longest segment as a new baseline
 new_baseline = get_new_baseline(result,mode="longest")
 
 # Plotting raw depth profile with new baseline
@@ -318,10 +296,12 @@ if(!SKIP){
   gg_lst_x
   dev.off()
 }
-gg_lst_x[[1]]
 
+# an example of raw read depth line plot with new baseline
+gg_lst_x[[1]]
 ```
 
+Normalized read depth profile line plots.
 
 ```{r,fig.width=7,fig.height=5}
 # Plotting normalized depth profile
@@ -342,13 +322,16 @@ if(!SKIP){
   gg_lst_y
   dev.off()
 }
+
+# an example of normalized read depth line plot with new baseline
 gg_lst_y[[1]]
 ```
 
 
+Robust Z-score profile line plots.
+
 ```{r,fig.width=7,fig.height=5}
 # Plotting robust Z-score profile
-
 gg_lst_z = 
   plot_pileUp_multisample(
     result = result,
@@ -366,8 +349,9 @@ pdf("figures/Robust-Z-score_CNV_call.pdf",height=4,width=6)
 gg_lst_z
 dev.off()
 }
-gg_lst_z[[1]]
 
+# an example of Z-score line plot with new baseline
+gg_lst_z[[1]]
 ```
 
 Generating heatmaps with integrative clustering.
@@ -391,7 +375,6 @@ use_data(total_aligned_base__host_and_virus,overwrite = TRUE)
 ```{r,fig.width=5,fig.height=4}
 data(total_aligned_base__host_and_virus)
 
-
 viral_load = (10^6)*(apply(base_resol_depth,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
 
 # distribtuion of overall viral load
@@ -400,12 +383,10 @@ viral_load %>%log10 %>% hist
 
 
 
+Generate heatmaps with integrative clustering using data transformed in various ways.
 
 
 ```{r}
-# col_z = circlize::colorRamp2(c(-10,0,10),c(muted("blue"),"white",muted("red")))
-# col_pal_gene = piratepal(palette = "info2")
-
 exclude_genes = c("E6*","E1^E4","E8^E2")
 integ_ht_result = integrative_heatmap(
   X_raw = base_resol_depth,
@@ -418,6 +399,7 @@ integ_ht_result = integrative_heatmap(
   total_aligned_base__host_and_virus = total_aligned_base__host_and_virus
 )
 
+# top annotation
 top_ant =
   HeatmapAnnotation(
     `Log2 Overall\nViral Load` = anno_points(log2(viral_load)),
@@ -425,9 +407,9 @@ top_ant =
 ```
 
 
-maximum number of intact copies
- - min copy of the overlappint copy segments
- - ratio according to certain gene
+Generate heatmap showing maximum number of intact copies
+ - min copy of the overlapping copy segments
+ - ratio relative to certain gene(`gene_ref`)
 
 ```{r}
 gene_ref="E7"
@@ -444,10 +426,9 @@ gene_cn =
 )
 
 
-
-
 ```
 
+Generate final heatmap in a single panel.
 
 ```{r,fig.width=7,fig.height=8}
 draw(top_ant %v% integ_ht_result$Heatmap %v% gene_cn$Heatmaps$intact_gene_cn %v% gene_cn$Heatmaps$rel_dosage)
@@ -460,57 +441,8 @@ draw(top_ant %v% integ_ht_result$Heatmap %v% gene_cn$Heatmaps$intact_gene_cn %v%
 
 ------------------------------------------------------------------------
 
-# 3. Parameter Setting
-
-## 3.1 Available parameters
-
-ddd
-
-ddddddddddddddd
-
-dddddddddddd
-
-dddddddddddddd
-
-dddddddddddd
-
-d
-
--   b
-
--   c
-
-b
-
-c
-
-
-
-# 4. sessionInfo
+# 3. sessionInfo
 
 ```{r}
 sessionInfo()
 ```
-
-
-
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

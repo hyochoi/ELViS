@@ -61,8 +61,6 @@ get_gene_anno_plot_ori <- function(
 
   }
 
-  # ylevels
-  # cds %>% lapply()
 
   cds_plotdata <-
     names(cds) %>%
@@ -112,9 +110,6 @@ get_gene_anno_plot_ori <- function(
 
 
 
-  # cds_plotdata$Gene = cds_plotdata$Gene %>% gsub(" ","",.)
-
-  # cds_plotdata$Gene = cds_plotdata$Gene %>% gsub("_ALPHA",URLdecode("%CE%B1"),.)
   cds_plotdata__CDS  <- cds_plotdata%>% dplyr::filter(.data$Type=="cds")
   cds_plotdata__INTRON <- cds_plotdata %>% dplyr::filter(.data$Type=="intron")
   cds_plotdata__INTRON_arrow_pos <-
@@ -227,7 +222,7 @@ get_gene_anno_plot <- memoise::memoise(get_gene_anno_plot_ori)
 #' @import memoise
 #' @importFrom grDevices axisTicks axisTicks col2rgb colorRampPalette palette rainbow rgb
 #' @importFrom graphics abline axis box image layout lines mtext par plot.new points polygon segments text title
-#' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd
+#' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd mad
 #' @importFrom utils read.csv tail
 #' @return ggplot object of pile-up plot
 #'
@@ -240,16 +235,9 @@ plot_pileUp <-
     plotdata <-
       data.frame(value = x) %>% dplyr::mutate(pos=seq_len(n()))
 
-    # print(baseline)
-    # print(target_cn_table$state)
-    # print(target_cn_table$state!=baseline)
-    # print(with(target_cn_table,table(state,baseline)))
     nonbase_states <-
-      # with(target_cn_table,state[state!=baseline_target])
       target_cn_table$state[target_cn_table$state!=baseline_target]
 
-    # nonbase_states = target_cn_table$state[target_cn_table$state!=baseline]
-    # print(nonbase_states)
     nonbase_states_us <- unique(sort(nonbase_states))
     col_pal_cn_fin <- col_pal_cn
     if(length(col_pal_cn)>length(nonbase_states_us)){
@@ -285,7 +273,6 @@ plot_pileUp <-
     }
 
 
-    # print(target_cn_table$CN_state_plotting)
 
 
     gg_line <-
@@ -395,7 +382,6 @@ plot_pileUp_multisample <- function(
   if(length(baseline)==1){
     baseline <- rep(baseline,NCOL(X_raw))
   }
-  # print(baseline)
 
 
 
@@ -487,7 +473,6 @@ plot_pileUp_multisample <- function(
   output <-
     target_indices %>%
     lapply(\(sample_idx){
-      # print(sample_idx)
       x <- mtrx_for_plotting[,sample_idx]
       sample_ID <- colnames(X_raw)[sample_idx]
       target_cn_table <- cn_for_plotting %>% dplyr::filter(.data$sampleID==sample_ID)
@@ -499,9 +484,7 @@ plot_pileUp_multisample <- function(
           col_cn_baseline=col_cn_baseline,col_pal_cn=col_pal_cn,
           scale_plot_yaxis=FALSE
         )
-      #suppressWarnings({
-        gg_line_fin <- gg_line + ylim(YLIM[1],YLIM[2])
-      #})
+      gg_line_fin <- gg_line + ylim(YLIM[1],YLIM[2])
 
       gg_line_fin <- gg_line_fin + xlim(0,NROW(mtrx_for_plotting)+1) +
         theme(plot.margin = unit(c(5.5, 5.5, 1, 5.5), "pt")) +
@@ -629,14 +612,11 @@ integrative_heatmap <- function(
     show_annotation_name = FALSE
   )
 
-  # (Heatmap(matrix(1:(2*NROW(X_raw)),ncol=2),cluster_rows = FALSE) + rnt_gene_name) %v%
-  # (Heatmap(matrix(1:(2*NROW(X_raw)),ncol=2),cluster_rows = FALSE) + rnt_rm_gnm)
 
 
   viral_load <- (10^6)*(apply(X_raw,2,\(x) sum(x)) )/total_aligned_base__host_and_virus
 
 
-  # result$final_output
   matrix_all_ori <- c("CN","Y","Z","X_Scaled","Viral_Load")
   if(is.null(viral_load)){
     matrix_all <- setdiff(matrix_all,"Viral_Load")
@@ -682,7 +662,6 @@ integrative_heatmap <- function(
       LQ_Smin <- X_scaled_log2p1 %>% apply(2,min) %>% quantile(0.20)
       MED <- X_scaled_log2p1 %>% median
       UQ_Smax <- X_scaled_log2p1 %>% apply(2,max) %>% quantile(0.95)
-      # min_Smax <- X_scaled_log2p1 %>% apply(2,\(x) c(min(x),max(x))) %>% .[2,] %>% min # min of sample max
 
       cntr <- MED
       col_x_scaled <-
@@ -769,11 +748,9 @@ integrative_heatmap <- function(
 
   key <- "CN"
   list_matrix[[key]] <-
-    # cn_rblist =
     result$final_output %>%
     group_by(.data$id) %>%
     dplyr::mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
-    # dplyr::mutate(begin=.data$begin) %>%
     dplyr::transmute(cn=.data$cn,id=.data$id,begin=.data$begin,end=.data$end) %>%
     apply(1,\(x) data.frame(pos=x[[3]]:x[[4]],sid=x[[2]],value=x[[1]])) %>% rbindlist %>%
     dcast(pos~sid,value.var = "value") %>%
@@ -823,7 +800,6 @@ integrative_heatmap <- function(
 
     )
 
-  # "X_Scaled"
 
 
   key <- "X_Scaled"
@@ -860,9 +836,7 @@ integrative_heatmap <- function(
       list_matrix[matrices_integ_cluster] %>%
       lapply(\(mtrx){
         # get sample distance matrix
-        mtrx %>% as.matrix %>% t %>% dist() #%>%
-        # normalized distance matrix by median
-        # {./quantile(.,q_p)}
+        mtrx %>% as.matrix %>% t %>% dist()
       })
 
     ltm_quantile <- Reduce(max,dist_list %>% lapply(\(dst) mean(dst<mean(dst)) ))
@@ -946,7 +920,6 @@ get_gene_rnt_ori <- function(
     genes <- genes[!(names(genes) %in% exclude_genes)]
   }
 
-  # Gene_levels = names(cds)
   Gene_levels <- unique(genes$gene_id)
 
   is_custom_palette <- FALSE
@@ -1091,12 +1064,13 @@ gene_cn_heatmaps <-
       cds <- cds[!(names(cds) %in% exclude_genes)]
     }
 
-
     cds_ul <- unlist(cds,use.names = TRUE)
-    mcols(cds_ul)$gene_id <- rep(names(cds),elementNROWS(cds))
+    mcols(cds_ul)$gene_id <-
+      rep(names(cds),vapply(cds,length,0))
+
+
     cds_ul_sort <- cds_ul %>% sort
 
-    # rep(c(1,2,3),c(2,3))
     genes_levels <- unique(genes$gene_id)
 
     chr <- as.character(seqnames(cds_ul_sort))[1]
@@ -1108,7 +1082,6 @@ gene_cn_heatmaps <-
       dplyr::ungroup() %>%
       dplyr::group_split(id) %>%
       lapply(\(df){
-        # print(1)
         gr <-
           df %>%
           dplyr::transmute(chr=chr,start=.data$begin,end=.data$end) %>%

@@ -1,13 +1,21 @@
 Package: ELViS
-Title: What the Package Does (One Line, Title Case)
+Title: An R Package for Estimating Copy Number Levels of Viral Genome Segments Using Base-Resolution Read Depth Profile
 Version: 0.99.0
 Authors@R: c(
-    person("Hyo Young", "Choi", , "hyoyoung.choi@uthsc.edu", role = "aut"),
-    person("Jin-Young", "Lee", , "jlee307@uthsc.edu", role = c("aut", "cre"),
+    person("Hyo Young", "Choi", , "hyoyoung.choi@uthsc.edu", role = c("aut", "cph"),
+           comment = c(ORCID = "0000-0002-7627-8493")),
+    person("Jin-Young", "Lee", , "jlee307@uthsc.edu", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-5366-7488")),
-    person("D. Neil", "Hayes", , "Neil.Hayes@uthsc.edu", role = c("aut", "fnd"))
+    person("Xiaobei", "Zhao", , "xiaobei_zhao@uthsc.edu", role = "ctb",
+           comment = c(ORCID = "0000-0002-5277-0846")),
+    person("Jeremiah R.", "Holt", , "jholt41@uthsc.edu", role = "ctb",
+           comment = c(ORCID = "0000-0002-5201-5015")),
+    person("Katherine A.", "Hoadley", , "hoadley@med.unc.edu", role = "aut",
+           comment = c(ORCID = "0000-0002-1216-477X")),
+    person("D. Neil", "Hayes", , "Neil.Hayes@uthsc.edu", role = c("aut", "fnd", "cph"),
+           comment = c(ORCID = "0000-0001-6203-7771"))
   )
-Description: What the package does (one paragraph).
+Description: Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. Provides publish-ready figures, including histograms of read depths, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing multiple types of data with integrative clustering of samples.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -30,7 +38,6 @@ Imports:
     graphics,
     grDevices,
     igraph,
-    IRanges,
     knitr,
     magrittr,
     memoise,
@@ -46,6 +53,7 @@ Imports:
     zoo
 Depends: R (>= 4.3)
 Suggests: 
- reticulate,
- Rsamtools,
- BiocManager
+    Rsamtools,
+    BiocManager,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

@@ -245,6 +245,19 @@ DESCRIPTION_action = function(func,...){
 ```
 
 
+#new file
+```{r}
+use_news_md()
+```
+
+
+# unit test
+```{r}
+usethis::use_testthat()
+usethis::use_test("pd_rate_hy")
+```
+
+
 # build test
 
 ```{r}
@@ -260,6 +273,11 @@ target_biocviews =
     ,"Visualization"
     ,"Clustering")
 
+
+
+
+{
+  prevdir = getwd()
 setwd("..");sync_namespace_to_description()
 # setwd("..");sync_namespace_to_description(biocViews_type=paste(target_biocviews,collapse = ", "),force_rewrite = TRUE)
 
@@ -276,7 +294,7 @@ DESCRIPTION_action(
 
 # importing packages should be less than 20 to prevent any notes
 # setwd("..")
-pkgs_suggest = c("reticulate","Rsamtools","BiocManager")
+pkgs_suggest = c("Rsamtools","BiocManager")
 DESCRIPTION_action(
   set_list,
   "Suggests",
@@ -293,19 +311,69 @@ DESCRIPTION_action(
   "URL", "https://github.com/hyochoi/ELViS"
 )
 
+usethis::use_testthat()
+
+setwd(prevdir)
+}
 # setwd("..")
+
+{
+   prevdir = getwd()
+   setwd("..")
+   DESCRIPTION_action(
+    set,
+    "Title",
+    "An R Package for Estimating Copy Number Levels of Viral Genome Segments Using Base-Resolution Read Depth Profile"
+  )
+  
+  DESCRIPTION_action(
+    set,
+    "Description",
+    "Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. Provides publish-ready figures, including histograms of read depths, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing multiple types of data with integrative clustering of samples."
+  )
+   setwd(prevdir)
+}
+
+
+
+
+{
+   
+   
+}
+
+{
+prevdir = getwd()
+   setwd("..")
+DESCRIPTION_action(del_author)
 DESCRIPTION_action(
   add_author,
-  given = "Hyo Young",family = "Choi",email = "hyoyoung.choi@uthsc.edu",role = c("aut"))
+  given = "Hyo Young",family = "Choi",email = "hyoyoung.choi@uthsc.edu",role = c("aut","cph"),
+  orcid="0000-0002-7627-8493")
 
 DESCRIPTION_action(
   add_author,
-  given = "Jin-Young",family = "Lee",email = "jlee307@uthsc.edu",role = c("aut","cre"),orcid = "0000-0002-5366-7488")
+  given = "Jin-Young",family = "Lee",email = "jlee307@uthsc.edu",role = c("aut","cre","cph"),orcid = "0000-0002-5366-7488")
 
 DESCRIPTION_action(
   add_author,
-  given = "D. Neil",family = "Hayes",email = "Neil.Hayes@uthsc.edu",role = c("aut","fnd"))
+  given = "Xiaobei",family = "Zhao",email = "xiaobei_zhao@uthsc.edu",role = c("ctb"),orcid = "0000-0002-5277-0846")
 
+DESCRIPTION_action(
+  add_author,
+  given = "Jeremiah R.",family = "Holt",email = "jholt41@uthsc.edu",role = c("ctb"),orcid = "0000-0002-5201-5015")
+
+DESCRIPTION_action(
+  add_author,
+  given = "Katherine A.",family = "Hoadley",email = "hoadley@med.unc.edu",role = c("aut"),
+  orcid="0000-0002-1216-477X")
+
+DESCRIPTION_action(
+  add_author,
+  given = "D. Neil",family = "Hayes",email = "Neil.Hayes@uthsc.edu",role = c("aut","fnd","cph"),
+  orcid="0000-0001-6203-7771")
+setwd(prevdir)
+}
 # ❯ checking data for ASCII and uncompressed saves ... WARNING
 #     Warning: package needs dependence on R (>= 2.10)
 
@@ -322,6 +390,13 @@ check()
   )
   
 use_git()
+```
+
+
+
+
+```{r}
+load_all();result <- run_ELViS_core(filtered_mtrx,N_cores=10L,save_intermediate_data = TRUE, save_idx=1, save_dir = "~/ELViS_test1",reduced_output = TRUE,verbose = TRUE)
 ```
 
 
