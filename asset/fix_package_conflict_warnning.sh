@@ -1,4 +1,4 @@
-cat package_conflict_warnning.txt | grep -Po '[a-zA-Z.]+::[a-zA-Z._]+' | sed 's/::/\t/g' | sort | uniq > package_conflict_warnning.txt_parsed.txts
+cat package_conflict_warnning.txt | grep -Po '[a-zA-Z.]+::[a-zA-Z._]+' | sed 's/::/\t/g' | sort | uniq > package_conflict_warnning.txt_parsed.txt
 
 grep -Po $(cut -f 2 package_conflict_warnning.txt_parsed.txt | sort | uniq | awk  'NR!=1{printf"|"}{printf "[^[:space:]]+"$1}') ../R/*  | sort |
 uniq > package_conflict_warnning.txt_parsed.txt_to_review.txt
