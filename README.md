@@ -42,7 +42,7 @@ if( BiocManager::version() >= "3.19" ){
    BiocManager::install("ELViS")
 }else{
    options(repos = BiocManager::repositories())
-   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="Bioc_le_3.18")
+   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="release_bioc_le_3.18")
 }
 
 # install development version
@@ -51,7 +51,7 @@ options(repos = BiocManager::repositories())
 if( BiocManager::version() >= "3.19" ){
    devtools::install_github("https://github.com/hyochoi/ELViS.git")
 }else{
-   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="Bioc_le_3.18")
+   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="master_bioc_le_3.18")
 }
 
 ```
