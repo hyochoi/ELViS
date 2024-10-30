@@ -36,10 +36,24 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
     install.packages("devtools")
 }
 
+# install release version
+## Ensure repos includes both CRAN and Bioconductor repositories
+if( BiocManager::version() >= "3.19" ){
+   BiocManager::install("ELViS")
+}else{
+   options(repos = BiocManager::repositories())
+   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="Bioc_le_3.18")
+}
 
-# Ensure repos includes both CRAN and Bioconductor repositories
+# install development version
+## Ensure repos includes both CRAN and Bioconductor repositories
 options(repos = BiocManager::repositories())
-devtools::install_github("https://github.com/hyochoi/ELViS.git")
+if( BiocManager::version() >= "3.19" ){
+   devtools::install_github("https://github.com/hyochoi/ELViS.git")
+}else{
+   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="Bioc_le_3.18")
+}
+
 ```
 
 
