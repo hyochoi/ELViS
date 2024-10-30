@@ -5,8 +5,7 @@ utils::globalVariables(c(".", "%>%"))
 
 #' @import ggplot2
 #' @import rmarkdown
-#' @importFrom txdbmaker makeTxDbFromGFF
-#' @importFrom GenomicFeatures transcriptsBy cdsBy genes
+#' @importFrom GenomicFeatures transcriptsBy cdsBy genes makeTxDbFromGFF
 #' @rawNamespace import(GenomicRanges, except=c(subtract))
 #' @noRd
 get_gene_anno_plot_ori <- function(
