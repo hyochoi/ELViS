@@ -58,7 +58,7 @@ check_and_install_conda <- function() {
 #' bam_files <- list.files(ext_path,full.names = TRUE,pattern = "bam$")
 #'
 #' # number of threads to use
-#' N_cores <- 2L
+#' N_cores <- 1L
 #'
 #' # get read depth matrix
 #' tmpdir<-"./tmpdir"
