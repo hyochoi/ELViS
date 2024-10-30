@@ -6,7 +6,8 @@
   <br>
 </h1>
 
-[![R-CMD-check-bioc](https://github.com/hyochoi/ELViS/actions/workflows/check-bioc_3.18.yml/badge.svg)](https://github.com/hyochoi/ELViS/actions/workflows/check-bioc_3.18.yml) <sup>(Ubuntu & Windows)</sup>
+<sup><b>R4.3 & Bioc3.18 (Ubuntu & Windows) : </b></sup> [![R-CMD-check-bioc](https://github.com/hyochoi/ELViS/actions/workflows/check-bioc_3.18.yml/badge.svg)](https://github.com/hyochoi/ELViS/actions/workflows/check-bioc_3.18.yml)
+<sup><b>R4.4 & Bioc3.19 (Ubuntu & Windows) : </b></sup> 
 
 An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome ***S***egments Using Base-Resolution Read Depth Profile.
 
