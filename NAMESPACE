@@ -16,7 +16,6 @@ import(GenomicRanges, except=c(subtract))
 import(circlize, except=c(degree))
 import(data.table, except=c(between,first,last,shift,yearmon,yearqtr))
 import(dplyr, except=c(as_data_frame,between,collapse,desc,first,groups,intersect,last,setdiff,union))
-
 import(ggplot2)
 import(glue, except=c(trim))
 import(igraph, except=c(as_data_frame,degree,groups,union))
