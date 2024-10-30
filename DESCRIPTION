@@ -49,6 +49,7 @@ Imports:
     segclust2d,
     stats,
     stringr,
+    txdbmaker,
     utils,
     uuid,
     zoo
