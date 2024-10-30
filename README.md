@@ -65,4 +65,4 @@ if( BiocManager::version() >= "3.19" ){
 
 ## HOW TO USE
 
-Please refer to vignette.
+Please refer to [vignette](https://jyleebioinfo.github.io/ELViS/).
