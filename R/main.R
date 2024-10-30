@@ -1221,7 +1221,6 @@ pooled_sd <- function(s1, s2, n1, n2) {
 #' @return data.frame containing segmentation results
 #' @rawNamespace import(igraph, except=c(as_data_frame,degree,groups,union))
 #' @import stringr
-#' @import combinat
 #' @noRd
 get_BPsegment_v2 <- function(X, Y, Z=NULL, sampleID,
                              q.Y.BP1 = 5,
@@ -1354,7 +1353,7 @@ get_BPsegment_v2 <- function(X, Y, Z=NULL, sampleID,
                 out <- as.list(i_tmp) # different seg
               }
             }else if(length(i_tmp)>=3){
-              i_tmp_cmb <- combinat::combn(i_tmp,2)
+              i_tmp_cmb <- utils::combn(i_tmp,2)
               max_rel_d <- i_tmp_cmb |>
                 apply(2,\(j_tmp){
                   psd_y <- pooled_sd(segtable$sd.y[j_tmp[1]],segtable$sd.y[j_tmp[2]],seg_len_vec[j_tmp[1]],seg_len_vec[j_tmp[2]])

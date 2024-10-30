@@ -4,7 +4,8 @@ utils::globalVariables(c(".", "%>%"))
 
 
 #' @import ggplot2
-#' @import GenomicFeatures
+#' @import rmarkdown
+#' @importFrom GenomicFeatures transcriptsBy cdsBy genes makeTxDbFromGFF
 #' @rawNamespace import(GenomicRanges, except=c(subtract))
 #' @noRd
 get_gene_anno_plot_ori <- function(
@@ -23,7 +24,7 @@ get_gene_anno_plot_ori <- function(
   arrow_spacing_bp <- as.integer(arrow_spacing*space_length)
 
   # prep annotation
-  txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+  txdb <- GenomicFeatures::makeTxDbFromGFF(gff3_fn, format = "gff3")
   all_features <- transcriptsBy(txdb, by = "gene")
   cds <- cdsBy(txdb, by = "gene")
   if(!is.null(exclude_genes)){
@@ -910,8 +911,8 @@ get_gene_rnt_ori <- function(
     ...
 ){
 
+    txdb <- GenomicFeatures::makeTxDbFromGFF(gff3_fn, format = "gff3")
 
-  txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
 
   genes <- genes(txdb) %>% sort
   cds <- cdsBy(txdb, by = "gene")
@@ -1053,7 +1054,7 @@ gene_cn_heatmaps <-
     baseline_target <- baseline
 
 
-    txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+    txdb <- GenomicFeatures::makeTxDbFromGFF(gff3_fn, format = "gff3")
 
 
     genes <- genes(txdb) %>% sort

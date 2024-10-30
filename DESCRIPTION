@@ -25,9 +25,9 @@ biocViews: CopyNumberVariation, Coverage, GenomicVariation, BiomedicalInformatic
 LazyData: false
 BugReports: https://github.com/hyochoi/ELViS/issues
 URL: https://github.com/hyochoi/ELViS
+Config/testthat/edition: 3
 Imports: 
     circlize,
-    combinat,
     ComplexHeatmap,
     data.table,
     dplyr,
@@ -44,6 +44,7 @@ Imports:
     parallel,
     patchwork,
     reticulate,
+    rmarkdown,
     scales,
     segclust2d,
     stats,
@@ -56,4 +57,3 @@ Suggests:
     Rsamtools,
     BiocManager,
     testthat (>= 3.0.0)
-Config/testthat/edition: 3
