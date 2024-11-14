@@ -1430,7 +1430,7 @@ clique_weight <- function(clique, graph) {
 get_subcl <- function(g){
   cliques_list <- cliques(g)
 
-  clique_weights <- vapply(X = cliques_list, FUN = clique_weight,FUN.VALUE = numeric(0), graph = g)
+  clique_weights <- vapply(X = cliques_list, FUN = clique_weight,FUN.VALUE = numeric(2), graph = g)
 
   ordered_cliques <- cliques_list[order(-clique_weights)]
 
