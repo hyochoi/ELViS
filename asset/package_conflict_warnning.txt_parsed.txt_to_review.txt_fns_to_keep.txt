@@ -1,5 +1,0 @@
-base	intersect
-dplyr	slice
-generics	setdiff
-stats	median
-stats	quantile
