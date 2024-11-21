@@ -65,7 +65,7 @@ theme_set(theme_bw())
 Prepare BAM file name vector.
 
 ```{r}
-analysis_dir = "~/ELViS"
+analysis_dir = tempdir()
 dir.create(analysis_dir,showWarnings = FALSE)
 
 package_name = "ELViS"
@@ -202,8 +202,6 @@ depth_hist(mtrx_samtools_reticulate,th=th,smry_fun=quantile,prob=0.75)
 base_resol_depth = filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
 print(base_resol_depth[1:4,1:4])
 
-# save data for later use
-saveRDS(base_resol_depth,"~/base_resol_depth.rds")
 ```
 
 
