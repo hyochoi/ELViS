@@ -6,7 +6,7 @@
 \usage{
 get_depth_matrix(
   bam_files,
-  mode = "samtools_reticulate",
+  mode = "samtools_basilisk",
   target_virus_name,
   N_cores = detectCores(),
   min_mapq = 30,
@@ -15,16 +15,15 @@ get_depth_matrix(
   modules = NULL,
   envs = NULL,
   tmpdir = "tmpdir",
-  remove_tmpdir = FALSE,
   samtools = NULL,
   condaenv = "env_samtools",
-  conda = "auto"
+  condaenv_samtools_version = "1.21"
 )
 }
 \arguments{
 \item{bam_files}{Vector containing bam file names in character}
 
-\item{mode}{Mode of read depth calculation. Either of \code{c("samtools_reticulate","samtools_custom","Rsamtools")} are acceptable. If run on Windows OS, it will coerced to \code{"Rsamtools"} (Default : \code{"samtools_reticulate"})}
+\item{mode}{Mode of read depth calculation. Either of \code{c("samtools_basilisk","samtools_custom","Rsamtools")} are acceptable. If run on Windows OS, it will coerced to \code{"Rsamtools"} (Default : \code{"samtools_basilisk"})}
 
 \item{target_virus_name}{The name of the target virus. This should be equal to the name of the sequence in the FASTA file reads are aligned to}
 
@@ -42,13 +41,11 @@ get_depth_matrix(
 
 \item{tmpdir}{(samtools) Temporary file directory (Default : \code{"tmpdir"})}
 
-\item{remove_tmpdir}{remove temporary directory after processing is done. Setting to TRUE is not recommended if you are running multiple processes. (Default : FALSE)}
-
 \item{samtools}{(samtools) Absolute path to samtools executable (Default : NULL)}
 
-\item{condaenv}{(samtools_reticulate) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : \code{"env_samtools"})}
+\item{condaenv}{(samtools_basilisk) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : \code{"env_samtools"})}
 
-\item{conda}{(samtools_reticulate) Path to conda executable. Set to "auto" to let the reticulate automatically decide which conda to use. (Default : "auto")}
+\item{condaenv_samtools_version}{(samtools_basilisk) The version of samtools to install in the conda environment using basilisk (Default : "1.21")}
 }
 \value{
 a matrix of positions x samples containing base-resolution raw read depth
@@ -76,15 +73,15 @@ N_cores <- 1L
 tmpdir<-"./tmpdir"
 dir.create(tmpdir,recursive = TRUE)
 
-mtrx_samtools_reticulate <-
+mtrx_samtools_basilisk <-
  get_depth_matrix(
   bam_files = bam_files,target_virus_name = target_virus_name
- ,mode = "samtools_reticulate"
+ ,mode = "samtools_basilisk"
  ,N_cores = N_cores
  ,min_mapq = 30
  ,tmpdir="tmpdir"
  ,condaenv = "env_samtools"
- ,conda = "auto")
+ )
 
  unlink(tmpdir,recursive=TRUE)
 
