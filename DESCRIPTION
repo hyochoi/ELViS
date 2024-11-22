@@ -27,6 +27,7 @@ BugReports: https://github.com/hyochoi/ELViS/issues
 URL: https://github.com/hyochoi/ELViS
 Config/testthat/edition: 3
 Imports: 
+    basilisk,
     circlize,
     ComplexHeatmap,
     data.table,
@@ -43,7 +44,6 @@ Imports:
     memoise,
     parallel,
     patchwork,
-    reticulate,
     rmarkdown,
     scales,
     segclust2d,
