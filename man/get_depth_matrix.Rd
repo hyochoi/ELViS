@@ -14,7 +14,7 @@ get_depth_matrix(
   max_depth = 1e+05,
   modules = NULL,
   envs = NULL,
-  tmpdir = "tmpdir",
+  tmpdir = tempdir(),
   samtools = NULL,
   condaenv = "env_samtools",
   condaenv_samtools_version = "1.21"
@@ -39,7 +39,7 @@ get_depth_matrix(
 
 \item{envs}{(samtools) Environmental variables for samtools. (Default : NULL)}
 
-\item{tmpdir}{(samtools) Temporary file directory (Default : \code{"tmpdir"})}
+\item{tmpdir}{(samtools) Temporary file directory (Default : \code{tempdir()})}
 
 \item{samtools}{(samtools) Absolute path to samtools executable (Default : NULL)}
 
@@ -70,8 +70,7 @@ bam_files <- list.files(ext_path,full.names = TRUE,pattern = "bam$")
 N_cores <- 1L
 
 # get read depth matrix
-tmpdir<-"./tmpdir"
-dir.create(tmpdir,recursive = TRUE)
+tmpdir <- tempdir()
 
 mtrx_samtools_basilisk <-
  get_depth_matrix(
@@ -79,11 +78,9 @@ mtrx_samtools_basilisk <-
  ,mode = "samtools_basilisk"
  ,N_cores = N_cores
  ,min_mapq = 30
- ,tmpdir="tmpdir"
+ ,tmpdir=tempdir()
  ,condaenv = "env_samtools"
  )
-
- unlink(tmpdir,recursive=TRUE)
 
 
 }
