@@ -9,7 +9,7 @@
 #' @param max_depth (Rsamtools) Maximum read depth. (Default : 1e5)
 #' @param modules (samtools) Environment modulefile name. (Default : NULL)
 #' @param envs (samtools) Environmental variables for samtools. (Default : NULL)
-#' @param tmpdir (samtools) Temporary file directory (Default : `"tmpdir"`)
+#' @param tmpdir (samtools) Temporary file directory (Default : `tempdir()`)
 #' @param samtools (samtools) Absolute path to samtools executable (Default : NULL)
 #' @param condaenv (samtools_basilisk) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : `"env_samtools"`)
 #' @param condaenv_samtools_version (samtools_basilisk) The version of samtools to install in the conda environment using basilisk (Default : "1.21")
@@ -38,8 +38,7 @@
 #' N_cores <- 1L
 #'
 #' # get read depth matrix
-#' tmpdir<-"./tmpdir"
-#' dir.create(tmpdir,recursive = TRUE)
+#' tmpdir <- tempdir()
 #'
 #' mtrx_samtools_basilisk <-
 #'  get_depth_matrix(
@@ -47,11 +46,9 @@
 #'  ,mode = "samtools_basilisk"
 #'  ,N_cores = N_cores
 #'  ,min_mapq = 30
-#'  ,tmpdir="tmpdir"
+#'  ,tmpdir=tempdir()
 #'  ,condaenv = "env_samtools"
 #'  )
-#'
-#'  unlink(tmpdir,recursive=TRUE)
 #'
 #'
 get_depth_matrix <-
@@ -67,7 +64,7 @@ get_depth_matrix <-
         #samtools specific options - custom and basilisk
         ,modules=NULL
         ,envs=NULL
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,samtools=NULL # absolute path to samtools
         #basilisk specific options
         ,condaenv = "env_samtools"
@@ -139,7 +136,7 @@ BiocManager::install('Rsamtools')")
                     ,min_base_quality=min_base_quality
                 )
         }else if(mode %in% c("samtools_custom","samtools_basilisk")){
-            dir.create(tmpdir)
+            if(!dir.exists(tmpdir)){ dir.create(tmpdir) }
             out_mtrx <-
                 get_depth_matrix_samtools(
                     bam_files=bam_files
@@ -449,7 +446,7 @@ get_depth_matrix_samtools <-
         ,N_cores = min(10,detectCores()),min_mapq=30,min_base_quality=0
         #samtools specific options
         ,modules=NULL,envs=NULL
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,samtools=NULL
     ){
 
@@ -484,7 +481,7 @@ get_depth_samtools <-
         ,target_virus_name
         ,min_mapq=30
         ,min_base_quality=0
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,bash_script_base
         ,samtools=NULL
     ){
@@ -523,7 +520,7 @@ get_depth_samtools <-
 #' @param max_depth (Rsamtools) Maximum read depth. (Default : 1e5)
 #' @param modules (samtools) Environment modulefile name. (Default : NULL)
 #' @param envs (samtools) Environmental variables for samtools. (Default : NULL)
-#' @param tmpdir (samtools) Temporary file directory (Default : `"tmpdir"`)
+#' @param tmpdir (samtools) Temporary file directory (Default : `tempdir()`)
 #' @param samtools (samtools) Absolute path to samtools executable (Default : NULL)
 #' @param condaenv (samtools_basilisk) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : `"env_samtools"`)
 #' @param condaenv_samtools_version (samtools_basilisk) The version of samtools to install in the conda environment using basilisk (Default : "1.21")
@@ -541,7 +538,7 @@ get_depth_matrix_gp <-
         ,max_depth = 1e5
         #samtools specific options - custom and basilisk
         ,modules=NULL,envs=NULL
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,samtools=NULL # absolute path to samtools
         #basilisk specific options
         ,condaenv = "env_samtools"
@@ -604,7 +601,7 @@ BiocManager::install('Rsamtools')")
                     ,min_base_quality=min_base_quality
                 )
         }else if(mode %in% c("samtools_custom","samtools_basilisk")){
-            dir.create(tmpdir)
+            if(!dir.exists(tmpdir)){ dir.create(tmpdir) }
             out_mtrx <-
                 get_depth_matrix_samtools_gp(
                     bam_files=bam_files
@@ -698,7 +695,7 @@ get_depth_matrix_samtools_gp <-
         ,N_cores = detectCores(),min_mapq=30,min_base_quality=0
         #samtools specific options
         ,modules=NULL,envs=NULL
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,samtools=NULL
     ){
 
@@ -780,7 +777,7 @@ get_depth_samtools_gp <-
         ,coord
         ,min_mapq=30
         ,min_base_quality=0
-        ,tmpdir="tmpdir"
+        ,tmpdir=tempdir()
         ,bash_script_base
         ,samtools=NULL
     ){
