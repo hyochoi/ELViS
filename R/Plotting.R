@@ -9,7 +9,7 @@ utils::globalVariables(c(".", "%>%"))
 #' @importFrom GenomicFeatures transcriptsBy cdsBy genes
 #' @rawNamespace import(GenomicRanges, except=c(subtract))
 #' @rawNamespace import(IRanges, except=c(slice,mad,median,quantile,sd))
-#' @rawNamespace import(BiocGenerics, except=c(mad,sd,combine,Position,normalize,path,image,density))
+#' @rawNamespace import(BiocGenerics, except=c(mad,sd,combine,Position,normalize,path,image,density,setequal))
 #' @rawNamespace import(RBGL, except=c(transitivity,bfs,dfs))
 #' @import rmarkdown
 #' @noRd
