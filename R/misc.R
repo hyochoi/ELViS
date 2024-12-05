@@ -435,3 +435,14 @@ yaxis.hy <- function(mat){
     templen <- tempmax-tempmin ;
     return(c(tempmin-0.002*templen, tempmax+0.002*templen)) ;
 }
+
+
+
+
+
+#' @noRd
+.onLoad <- function(libname, pkgname) {
+    if (is.null(getOption("repos")) || getOption("repos")["CRAN"] == "@CRAN@") {
+        options(repos = c(CRAN = "https://cloud.r-project.org"))
+    }
+}
