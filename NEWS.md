@@ -1,3 +1,6 @@
+# ELViS 0.99.7
+* R version dependency update : R (>= 4.5.0)
+
 # ELViS 0.99.6
 * Added unit tests for make_baseline_vec, make_col_pal_fin_gene, stopifnot_class_ge1, stopifnot_list_ge1, yaxis_hy
 
