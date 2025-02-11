@@ -1,3 +1,6 @@
+# ELViS 0.99.6
+* Added unit tests for make_baseline_vec, make_col_pal_fin_gene, stopifnot_class_ge1, stopifnot_list_ge1, yaxis_hy
+
 # ELViS 0.99.5
 
 * Fixes according to initial main review from Bioconductor at https://github.com/Bioconductor/Contributions/issues/3631#issuecomment-2548723782

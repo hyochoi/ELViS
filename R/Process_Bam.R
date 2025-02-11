@@ -151,7 +151,7 @@ get_depth_matrix_Rsamtools <-
 
             chr <- coord_or_target_virus_name;start <- 1;end <- virus_genome_size
         }else{
-            coord_lst <- coord_to_lst(coord)
+            coord_lst <- coord_to_lst(coord_or_target_virus_name)
 
             chr <- coord_lst$chr;start <- coord_lst$start;end <- coord_lst$end
         }

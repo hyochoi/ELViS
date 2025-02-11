@@ -1183,10 +1183,10 @@ gene_cn_heatmaps <-
 
         CN_info <-
             result$final_output %>%
-            group_by(id) %>%
+            group_by(.data$id) %>%
             mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
             ungroup() %>%
-            group_split(id) %>%
+            group_split(.data$id) %>%
             lapply(\(df){
                 gr <-
                     df %>%

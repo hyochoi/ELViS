@@ -1076,7 +1076,7 @@ run_ELViS_core <- function(
 #'
 #' @return a integer vector indicating new baseline index for each sample
 #' @export
-#' @importFrom dplyr n group_by summarise ungroup group_split slice_max slice_min filter mutate transmute select
+#' @importFrom dplyr n group_by summarise ungroup group_split slice_max slice_min filter mutate transmute select matches
 #'
 #' @examples
 #'
@@ -1094,7 +1094,7 @@ get_new_baseline <- function(result,mode="longest"){
 
     tmp_data <-
         result$final_output %>%
-        group_by(id,.data$state) %>%
+        group_by(.data$id,.data$state) %>%
         summarise(total_length = sum(.data$end-.data$begin+1)) %>%
         ungroup()
 
@@ -1103,7 +1103,7 @@ get_new_baseline <- function(result,mode="longest"){
 
         new_baseline <-
             tmp_data %>%
-            group_by(id) %>%
+            group_by(.data$id) %>%
             slice_max(.data$total_length,n = 1) %>%
             {.$state}
 
@@ -1111,7 +1111,7 @@ get_new_baseline <- function(result,mode="longest"){
 
         new_baseline <-
             tmp_data %>%
-            group_by(id) %>%
+            group_by(.data$id) %>%
             slice_min(.data$total_length,n = 1) %>%
             {.$state}
 
