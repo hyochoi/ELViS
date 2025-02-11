@@ -1,52 +1,8 @@
-#' Sample filtering threshold examination plot.
-#'
-#' @param mtrx Matrix or data.frame. Rows are positions and columns are samples.
-#' @param th Numeric. Sample filtering threshold
-#' @param title_txt figure title.
-#' @param smry_fun function to calculate summary metric to apply sample filter threshold to
-#' @param ... additional argument for `smry_fun` argument.
-#'
-#' @return ggplot2 object
-#' @export
-#' @import ggplot2
-#' @rawNamespace import(glue, except=c(trim))
-#' @import stringr
-#' @import scales
-#' @import knitr
-#'
-#' @examples
-#' data(mtrx_samtools_reticulate)
-#' th <- 50
-#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun=max)
-#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = quantile,prob=0.95)
-#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = mean)
-depth_hist <- function(mtrx,th=50,title_txt=NULL,smry_fun=max,...){
-    if(is.null(title_txt)){
-        dot_info <- capture_params_glue(...)
-        fun_name <- str_to_title(deparse(substitute(smry_fun)))
-        if(length(dot_info)==0){
-            title_txt <- (glue("{fun_name} Depth Distribution"))
-        }else{
-            title_txt <- (glue("{fun_name} {dot_info} Depth Distribution"))
-        }
-
-    }
-
-    ggplot(
-        data.frame(Max_Depth = apply(mtrx,2,smry_fun,...))
-    ) +
-        aes(x = .data$Max_Depth) +
-        geom_histogram(col="gray30",fill="gray80",) +
-        geom_rect(aes(xmin = 0, xmax = th, ymin = 0, ymax = Inf),
-                fill = alpha("gray",0.01)) +
-        geom_vline(xintercept = th,col="red",linetype="dashed") +
-        scale_x_continuous(trans="log10") +
-        ggtitle(title_txt)
-
-}
 
 
 capture_params_glue <- function(...) {
+    # no need for input checking - this code is just to get the names of the input arguments
+
     # Capture the names and values of the arguments
     args <- as.list(match.call())[-1]  # Exclude the function name from the list
 
@@ -64,15 +20,6 @@ capture_params_glue <- function(...) {
 
 
 
-#' @import scales
-#' @noRd
-log10p1_trans <- scales::trans_new(
-    name = "log10p1",
-    transform = function(x) log10(x + 1),
-    inverse = function(x) 10^x - 1,
-    breaks = function(x) log_breaks(base = 10)(x + 1)
-)
-
 
 #' Filtering samples based on summary statistic
 #'
@@ -88,19 +35,15 @@ log10p1_trans <- scales::trans_new(
 #' th<-50
 #' filtered_mtrx <- filt_samples(mtrx_samtools_reticulate,th=th,smry_fun=max)
 filt_samples <- function(mtrx,th=50,smry_fun=max){
+
+    ## input checking
+    stopifnot_mtrx_or_df(mtrx)
+    stopifnot_numeric1(th)
+    stopifnot(is(smry_fun,"function"))
+    ## input checking done
+
     mtrx[,apply(mtrx,2,smry_fun) > th]
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -114,10 +57,16 @@ filt_samples <- function(mtrx,th=50,smry_fun=max){
 #' @export
 #' @examples
 #'
-#' norm.fun(seq_len(5))
+#' norm_fun(seq_len(5))
 #' # [1] 0.25 0.50 0.75 1.00 1.25
 #'
-norm.fun <- function(x,probs=0.75) {
+norm_fun <- function(x,probs=0.75) {
+
+    ## input checking
+    stopifnot(is(x,"numeric"))
+    stopifnot_probs(probs)
+    ## input checking done
+
     m <- quantile(x,probs=probs)
     if (m>0) {
         return(x/m)
@@ -130,30 +79,23 @@ norm.fun <- function(x,probs=0.75) {
 #' get windows cut at points where depth profile crosses upper quartile
 #'
 #' @param Y numeric matrix containing normalized data
-#' @param sam sample indexindex
+#' @param sam sample index
+#' @param cutoff cutoff for selecting window boundary
+#' @param min.length minimum window length. Windows in the noisy region around the cutoff are negelected.
 #'
 #' @return window list
 #' @noRd
-get_window_v1 <- function(Y,sam) {
-    ips <- which((Y[,sam]-1)[seq_len(nrow(Y)-1)]*(Y[,sam]-1)[2:nrow(Y)]<=0)
-    win <- matrix(c(1,rep(ips,each=2),dim(Y)[1]),ncol=2,byrow=TRUE)
-    win <- win[which((win[,2] - win[,1])>10),]
+get_window_v1 <- function(Y,sam,cutoff=1,min.length=10) {
+    ## input checking
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_numeric1(sam)
+    stopifnot_numeric1(min.length)
+    ## input checking done
+
+    win <- get_window_core(y=Y[,sam],cutoff=cutoff,min.length=min.length)
     return(win)
 }
 
-
-#' get average per window and sample
-#'
-#' @param Y numeric matrix containing normalized data
-#' @param sam sample indexindex
-#'
-#' @return list containing matrices of averages per window and sample
-#' @noRd
-get_outmat <- function(Y,sam) {
-    win <- get_window(Y,sam)
-    outmat <- t(apply(win,1,function(x) pd.rate.hy(apply(Y[c(x[1]:x[2]),],2,mean),qrsc = TRUE)))
-    return(outmat)
-}
 
 
 
@@ -166,7 +108,9 @@ get_outmat <- function(Y,sam) {
 #' @return list containing matrices of averages per window and sample
 #' @noRd
 get_outmat_v1 <- function(Y,win) {
-    outmat <- t(apply(win,1,function(x) pd.rate.hy(apply(Y[c(x[1]:x[2]),],2,mean),qrsc = TRUE)))
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_win(win)
+    outmat <- t(apply(win,1,function(x) pd_rate_hy(apply(Y[c(x[1]:x[2]),],2,mean),qrsc = TRUE)))
     return(outmat)
 }
 
@@ -184,34 +128,39 @@ get_outmat_v1 <- function(Y,win) {
 #' @return list of two matrices Y and Z. Y and Z contain normalized and standardized data, respectively.
 #' @noRd
 get_normalized_data <- function(X,q.cutoff=4){
+    stopifnot_mtrx_or_df(X)
+    stopifnot_numeric1(q.cutoff)
     n <- NCOL(X)
     d <- NROW(X)
     # upper quartile normalizaiton
-    Y <- apply(X,2,norm.fun)
+    Y <- apply(X,2,norm_fun)
 
     # get windows(intervals) cut at UQ-crossing points
     window.list <- lapply(c(seq_len(ncol(Y))),function(j) get_window_v1(Y=Y,sam=j)) # get windows
     # get average per window and sample, standardize across samples to get relative position in the cohort
     outmat.list <- lapply(window.list,function(j) get_outmat_v1(Y=Y,win=j)) # get per-window mean for each sample and get relative score of it, upper and lower part SDs are different
 
+    Y2 <-
+        seq_len(n) %>%
+        vapply(FUN.VALUE = numeric(d)
+               ,FUN = \(sam){
+                   stopifnot_numeric1(sam)
+                   sammat <- cbind(window.list[[sam]],outmat.list[[sam]][,sam])
+                   outreg <- c()
 
-    Y2 <- matrix(0,ncol=ncol(Y),nrow=nrow(Y))
+                   # when calculating median, exclude extreme outlier segments (compared to other samples not compared to other segments) for low coverage
+                   j <- which.min(sammat[,3])
+                   if (sammat[j,3]<(-q.cutoff)) {
+                       outreg <- c(sammat[j,1]:sammat[j,2])
+                   }
+                   # renoramlize based on median
+                   Y[,sam]/median(Y[which(! c(seq_len(d)) %in% outreg),sam])
+               }
+               )
+
     colnames(Y2) <- colnames(Y)
-    for (sam in seq_len(n) ) {
-        # segments cut based on crossing over UQ and deviation from the center of entire cohort
-        sammat <- cbind(window.list[[sam]],outmat.list[[sam]][,sam])
-        outreg <- c()
 
-        # when calculating median, exclude extreme outlier segments (compared to other samples not compared to other segments) for low coverage
-        j <- which.min(sammat[,3])
-        if (sammat[j,3]<(-q.cutoff)) {
-            outreg <- c(sammat[j,1]:sammat[j,2])
-        }
-        # renoramlize based on median
-        Y2[,sam] <- Y[,sam]/median(Y[which(! c(seq_len(d)) %in% outreg),sam])
-    }
-
-    Z2 <- t(apply(Y2,1,function(x) pd.rate.hy(x,qrsc=TRUE))) # stabilize deviations seperately for higher than median and lower than median
+    Z2 <- t(apply(Y2,1,function(x) pd_rate_hy(x,qrsc=TRUE))) # stabilize deviations seperately for higher than median and lower than median
 
     # final normalized data
     output <- list(sample_Ids=colnames(X),Y=Y2,Z=Z2)
@@ -219,6 +168,44 @@ get_normalized_data <- function(X,q.cutoff=4){
     return(output)
 }
 
+
+search_Kopt <- function(x,lmin=300,Kmax=10,seg.var=c("z","y"),subsample_by = 60,scale.variable = FALSE,...){
+    stopifnot_numeric1(lmin)
+    stopifnot_numeric1(Kmax)
+    stopifnot_numeric1(subsample_by)
+    stopifnot_logical1(scale.variable)
+    stopifnot(is(seg.var,"character"))
+    stopifnot(is(x,"data.frame")&(seg.var %in% colnames(x)))
+
+    shift_seg <- segmentation(
+        x=x
+        ,lmin=lmin
+        ,Kmax=Kmax
+        ,seg.var=seg.var
+        ,subsample_by=subsample_by
+        ,scale.variable=scale.variable
+        ,...)
+
+    return(shift_seg$Kopt.lavielle)
+}
+
+
+get_clust_seg <- function(x, ncluster, lmin=300, Kmax=10,
+                       seg.var=c("z","y"), scale.variable=FALSE, subsample_by=60){
+
+    stopifnot_numeric_ge1(ncluster)
+    stopifnot_numeric1(lmin)
+    stopifnot_numeric1(Kmax)
+    stopifnot_numeric1(subsample_by)
+    stopifnot_logical1(scale.variable)
+    stopifnot(is(seg.var,"character"))
+    stopifnot(is(x,"data.frame")&(seg.var %in% colnames(x)))
+
+
+    clust_seg <- segclust(x=x, lmin=lmin, Kmax=Kmax, ncluster=ncluster,
+                            seg.var=seg.var, scale.variable=scale.variable, subsample_by=subsample_by)
+    return(clust_seg)
+}
 
 
 
@@ -229,12 +216,15 @@ get_normalized_data <- function(X,q.cutoff=4){
 #' @param verbose logical whether to print out information for debugging
 #'
 #' @return a list containing updated data
-#' @import parallel
-#' @import segclust2d
-#' @rawNamespace import(circlize, except=c(degree))
-#' @rawNamespace import(zoo, except=c(index,yearmon,yearqtr,"index<-"))
+#' @importFrom segclust2d segment segmentation segclust
+#' @importFrom circlize colorRamp2
+#' @importFrom zoo rollapply
 #' @noRd
 update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
+
+    stopifnot_numeric1(cores)
+    stopifnot_logical1(verbose)
+    stopifnot_normalized_data(normalized_data)
 
     n <- NCOL(normalized_data$Y)
     d <- NROW(normalized_data$Y)
@@ -260,15 +250,10 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
                 testdata <- data.frame(z=Z[,sam],y=Y[,sam])
                 output <- tryCatch({
 
-                    shift_seg <- segmentation(
-                                            testdata,
-                                            lmin=300,
-                                            Kmax = 10,
-                                            seg.var = c("z","y"), subsample_by = 60, scale.variable = FALSE)
-                    K <- shift_seg$Kopt.lavielle
-
+                    K <- search_Kopt(x=testdata)
                     msg <- paste0(sam,"| done"); message(msg)
 
+                    #output
                     K
 
                 },error=function(err) {
@@ -276,13 +261,7 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
                     message("Running 1D segmentation with robust-scaled data only")
 
                     # proceed only with Z
-                    shift_seg <- segmentation(
-                                            testdata,
-                                            lmin=300,
-                                            Kmax = 10,
-                                            seg.var = c("z"), subsample_by = 60, scale.variable = FALSE)
-                    K <- shift_seg$Kopt.lavielle
-
+                    K <- search_Kopt(x=testdata,seg.var = c("z"))
                     msg <- paste0(sam,"| done"); message(msg)
 
                     #output
@@ -314,8 +293,7 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
 
                         K <- segment.K_initial[sam]
                         if (K>1) {
-                            clust_seg <- segclust(  testdata, lmin=300, Kmax=10, ncluster = (2:K),
-                                                    seg.var = c("z","y"), scale.variable = FALSE, subsample_by = 60)
+                            clust_seg <- get_clust_seg(x=testdata,ncluster = (2:K))
                             result <- segment(clust_seg)
 
                             # Update mean
@@ -337,8 +315,8 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
 
                         K <- segment.K_initial[sam]
                         if (K>1) {
-                            clust_seg <- segclust(  testdata, lmin=300, Kmax=10, ncluster = (2:K),
-                                                    seg.var = c("z"), scale.variable = FALSE, subsample_by = 60)
+
+                            clust_seg <- get_clust_seg(x=testdata,ncluster = (2:K),seg.var=c("z"))
                             result <- segment(clust_seg)
 
                             result$mu.y <-
@@ -372,7 +350,7 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
         ) %>%
         simplify2array
 
-    Z_recentered <- t(apply(Y_recentered,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+    Z_recentered <- t(apply(Y_recentered,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
 
     return(
         list(
@@ -404,6 +382,9 @@ update_reference_segments <- function(normalized_data,cores=10L,verbose=FALSE){
 #' @return a list containing segment and cluster information
 #' @noRd
 get_segments_and_clusters <- function(refupate_data,cores=10L){
+    stopifnot_refupate_data(refupate_data)
+    stopifnot_numeric1(cores)
+
     sample_id_vec <- refupate_data$sample_Ids
     Y_recentered <- refupate_data$Y_recentered
     Z_recentered <- refupate_data$Z_recentered
@@ -424,13 +405,11 @@ get_segments_and_clusters <- function(refupate_data,cores=10L){
                     K <- segment.K_initial[sam]
                     if (K>1) {
 
-                        shift_seg <- segmentation(testdata, lmin=300, Kmax = 10, seg.var = c("z","y"), subsample_by = 60, scale.variable = FALSE)
-                        K <- shift_seg$Kopt.lavielle
+                        K <- search_Kopt(x=testdata)
 
                         # K can be 1 here
                         if(K>1){
-                            clust_seg <- segclust(  testdata, lmin=300, Kmax=10, ncluster = (2:K),
-                                                    seg.var = c("z","y"), scale.variable = FALSE, subsample_by = 60)
+                            clust_seg <- get_clust_seg(x=testdata,ncluster = (2:K))
                             out <- list(K=K,clust = clust_seg)
                         }else{
                             out <- list(K=K,clust = NULL)
@@ -448,12 +427,11 @@ get_segments_and_clusters <- function(refupate_data,cores=10L){
                     K <- segment.K_initial[sam]
                     if (K>1) {
 
-                        shift_seg <- segmentation(testdata, lmin=300, Kmax = 10, seg.var = c("z"), subsample_by = 60, scale.variable = FALSE)
-                        K <- shift_seg$Kopt.lavielle
+                        K <- search_Kopt(x=testdata,seg.var = c("z"))
+
                         # K can be 1 here
                         if(K>1){
-                            clust_seg <- segclust(  testdata, lmin=300, Kmax=10, ncluster = (2:K),
-                                                    seg.var = c("z"), scale.variable = FALSE, subsample_by = 60)
+                            clust_seg <- get_clust_seg(x=testdata,ncluster = (2:K),seg.var=c("z"))
                             out <- list(K=K,clust = clust_seg)
                         }else{
                             out <- list(K=K,clust = NULL)
@@ -489,40 +467,6 @@ get_segments_and_clusters <- function(refupate_data,cores=10L){
 
 
 
-#' Run Z-score-only segmentation for samples for which 2d segmentation failed
-#'
-#' @param segupdated_data list containing 5 elements : sample_ids,Y,Z,segment.K, and clust.list. Y, Z corresponds to Y_recentered and Z_recentered in the return value of function update_reference_segments. segment.K and clust.list corresponds to those in the return value of function get_segments_and_clusters.
-#'
-#' @return list containing 5 elements. Same format as input argument segupdated_data but the segmentation results(segment.K and clust.list) are updated
-#' @noRd
-finalize_segments_and_clusters <- function(segupdated_data){
-
-
-    rescued_data <- segupdated_data
-    for (sam in which(segupdated_data$segment.K==0)) {
-        message(sam)
-        sampleID <- segupdated_data$sample_Ids[sam]
-        testdata <- data.frame(z=segupdated_data$Z[,sam],y=segupdated_data$Y[,sam])
-
-        shift_seg <- segmentation(testdata, lmin=300, Kmax = 10, seg.var = c("z"), subsample_by = 60, scale.variable = FALSE)
-        K <- shift_seg$Kopt.lavielle
-        rescued_data$segment.K[sam] <- K
-        if (K>1) {
-            clust_seg <- segclust(  testdata, lmin=300, Kmax=10, ncluster = (2:K),
-                                    seg.var = c("z"), scale.variable = FALSE, subsample_by = 60)
-            rescued_data$clust.list[[sam]] <- clust_seg
-        } else {
-            rescued_data$segment.K[sam] <- K
-        }
-    }
-
-    return(rescued_data)
-
-
-}
-
-
-
 #' Title
 #'
 #' @param rescued_data get_segments_and_clusters output
@@ -550,6 +494,19 @@ detect_bp__update_ref <- function(
         ,half.width = 250
         ,verbose=FALSE
 ){
+
+
+    stopifnot_rescued_data(rescued_data)
+    stopifnot_mtrx_or_df(X)
+    stopifnot_numeric1(cores)
+    stopifnot_probs(prob.cutoff)
+    stopifnot_numeric1(BP.ydepth)
+    stopifnot_numeric1(X.cutoff)
+    stopifnot_numeric1(q.Y.BP1)
+    stopifnot_numeric1(q.Y.BP2)
+    stopifnot_numeric1(half.width)
+    stopifnot_logical1(verbose)
+
     n <- NCOL(X)
     d <- NROW(X)
 
@@ -570,12 +527,12 @@ detect_bp__update_ref <- function(
 
     if(verbose) message("    BPs2.test05")
     BPs2.test05 <-
-        parallel::mclapply( mc.cores=cores,
+        mclapply( mc.cores=cores,
                             X=Ydiff_list,FUN = function(y) detect_BPs(y=y, q.Y=q.Y.BP1))
 
     # detect_BPs
     if(verbose) message("    BPs2.test10")
-    BPs2.test10 <- parallel::mclapply(mc.cores=cores,X=Ydiff_list,FUN = function(y) detect_BPs(y=y, q.Y=q.Y.BP2))
+    BPs2.test10 <- mclapply(mc.cores=cores,X=Ydiff_list,FUN = function(y) detect_BPs(y=y, q.Y=q.Y.BP2))
     # sequential
     #    user  system elapsed
     # 243.039   4.520 247.916
@@ -592,16 +549,16 @@ detect_bp__update_ref <- function(
     BPcut2 <- lapply(seq_len(dim(X)[2]), FUN=function(sam) which(abs(Ydiff[,sam]) > BP.ydepth))
 
     if(verbose) message("    BPs2.level1")
-    BPs2.level1 <- lapply(seq_len(dim(X)[2]), FUN=function(sam) base::intersect(BPs2.test05[[sam]], BPcut1[[sam]]))
+    BPs2.level1 <- lapply(seq_len(dim(X)[2]), FUN=function(sam) intersect(BPs2.test05[[sam]], BPcut1[[sam]]))
 
     if(verbose) message("    BPs2.level2")
-    BPs2.level2 <- lapply(seq_len(dim(X)[2]), FUN=function(sam) base::intersect(BPs2.test10[[sam]], BPcut1[[sam]]))
+    BPs2.level2 <- lapply(seq_len(dim(X)[2]), FUN=function(sam) intersect(BPs2.test10[[sam]], BPcut1[[sam]]))
 
     if(verbose) message("    BPs2.level1.plus")
     BPs2.level1.plus <-
         lapply(
             seq_len(dim(X)[2]),
-            FUN=function(sam) base::intersect(BPs2.level1[[sam]], BPcut2[[sam]]))
+            FUN=function(sam) intersect(BPs2.level1[[sam]], BPcut2[[sam]]))
     #     user   system  elapsed
     # 1911.389    5.509 1921.437
 
@@ -609,11 +566,12 @@ detect_bp__update_ref <- function(
     # initial run
     if(verbose) message("    Y_new")
     Y_new <- seq_len(ncol(X)) %>%
+        # lapply(
         mclapply(   mc.cores = cores,
-                    \(i) {message(i);detect_bp__update_ref__sub_updateY(i,X_input=X,Y=Y,Z=Z,BPs2.level1.plus=BPs2.level1.plus,BPs2.level2=BPs2.level2)}
+                    \(i) {message(i);out <- detect_bp__update_ref__sub_updateY(i,X_input=X,Y=Y,Z=Z,BPs2.level1.plus=BPs2.level1.plus,BPs2.level2=BPs2.level2);message(i);return(out)}
         ) %>%
-        as.data.frame() %>% as.matrix() %>% magrittr::set_names(NULL)
-    Z_new <-  t(apply(Y_new,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+        as.data.frame() %>% as.matrix() %>% set_colnames(NULL)
+    Z_new <-  t(apply(Y_new,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
 
     # second-round run
     if(verbose) message("    Y_new2")
@@ -621,8 +579,7 @@ detect_bp__update_ref <- function(
         mclapply(   mc.cores = cores,
                     detect_bp__update_ref__sub_updateY,X_input=X,Y=Y_new,Z=Z_new,BPs2.level1.plus=BPs2.level1.plus,BPs2.level2=BPs2.level2
         ) %>%
-        as.data.frame() %>% as.matrix() %>% magrittr::set_names(NULL)
-    Z_new2 <-  t(apply(Y_new2,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+        as.data.frame() %>% as.matrix() %>% set_colnames(NULL)
     # user   system  elapsed
     # 1403.340   30.310  207.518
 
@@ -631,14 +588,34 @@ detect_bp__update_ref <- function(
     )
 }
 
+get_segbps <- function(nseg,nseg2,segment.table){
+    stopifnot_numeric1(nseg)
+    stopifnot_segment.table(segment.table)
+
+    segbps <- lapply(seq_len(nseg), FUN=function(i) segment.table$begin[i]:segment.table$end[i])
+    #first and last segments are connected
+    segbps[[1]] <- c(segbps[[1]], segment.table$begin[nseg2]:segment.table$end[nseg2])
+
+    return(segbps)
+}
+
 
 
 # segmenting
 detect_bp__update_ref__sub_updateY <- function(sam,X_input,Y,Z,BPs2.level1.plus,BPs2.level2){
 
+    stopifnot_numeric1(sam)
+    stopifnot_mtrx_or_df(X_input)
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_mtrx_or_df(Z)
+
     sampleID <- colnames(X_input)[sam]
     n <- NCOL(X_input)
     d <- NROW(X_input)
+
+    stopifnot_listL(BPs2.level1.plus,L=n)
+    stopifnot_listL(BPs2.level2,L=n)
+
     testdata <- data.frame(x=X_input[,sam], y=Y[,sam],z=Z[,sam])
     Ydiff_sam <- diff(testdata$y)
 
@@ -647,13 +624,13 @@ detect_bp__update_ref__sub_updateY <- function(sam,X_input,Y,Z,BPs2.level1.plus,
 
     BPs <- unique(c(BPs1, BPs2))
     BPs.sam <- length(BPs)
+    # print(BPs.sam)
     if (BPs.sam > 0) {
         if (BPs.sam %% 2 > 0) {
             BPs.sam <- BPs.sam + 1
             newBP <- c(seq_along(Ydiff_sam)[-BPs])[which.max(abs(Ydiff_sam[-BPs]))]
             BPs <- c(BPs,newBP)
         }
-
 
         nseg <- length(BPs)
         nseg2 <- nseg + 1
@@ -662,37 +639,15 @@ detect_bp__update_ref__sub_updateY <- function(sam,X_input,Y,Z,BPs2.level1.plus,
                                     begin = c(1,srt.BPs+1),
                                     end = c(srt.BPs, d))
 
-        segbps <- lapply(seq_len(nseg), FUN=function(i) segment.table$begin[i]:segment.table$end[i])
-        #first and last segments are connected
-        segbps[[1]] <- c(segbps[[1]], segment.table$begin[nseg2]:segment.table$end[nseg2])
+        segbps <- get_segbps(nseg,nseg2,segment.table)
 
         ## Find a baseline
-        Y.tmp <- Y
-        Q1.zscore <- max.zscore <- mean.zscore.outwinreg <- rep(1000,nseg)
-        med.outwinreg <- len.outwinreg <- rep(0,nseg)
-        names(mean.zscore.outwinreg) <- seq_len(nseg)
-        for (js in seq_len(nseg)) {
-            outwinreg <- segbps[[js]]
-            len.outwinreg[js] <- length(outwinreg)
-            newmed <- median(Y[outwinreg,sam])
-            med.outwinreg[js] <- newmed
-            if (newmed > 0.05) {
-                Y.tmp[,sam] <- Y[,sam]/newmed
-                Z.tmp <- t(apply(Y.tmp,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
-                mean.zscore.outwinreg[js] <- mean(abs(Z.tmp[outwinreg,sam]))
-                Q1.zscore[js] <- quantile(abs(Z.tmp[,sam]),probs=0.25)
-                max.zscore[js] <- max(abs(Z.tmp[,sam]))
-            }
-        }
 
-        ireg <- which((max.zscore < 30) & (len.outwinreg > 500))
-        if (length(ireg) > 0) {
-            baseseg <- ireg[which.min(Q1.zscore[ireg])]
-        } else {
-            ireg <- which(max.zscore < 30)
-            baseseg <- ireg[which.min(Q1.zscore[ireg])]
-        }
-        baseseg
+        len.outwinreg <- vapply(segbps, FUN = length, FUN.VALUE = integer(1))
+        dt_zscores <- get_dt_zscores(nseg,segbps,Y,sam)
+
+        baseseg <- get_baseseg(dt_zscores,len.outwinreg)
+
         js <- baseseg
         outwinreg <- segbps[[js]]
         newmed <- median(Y[outwinreg,sam])
@@ -700,10 +655,33 @@ detect_bp__update_ref__sub_updateY <- function(sam,X_input,Y,Z,BPs2.level1.plus,
     }else{
         return(Y[,sam])
     }
-    message(sam, "\n")
 
 }
 
+
+get_baseseg <- function(dt_zscores,len.outwinreg){
+    is_len.outwinreg_gt500 <- (len.outwinreg > 500)
+    is_max.zscore_lt30 <- (dt_zscores$max.zscore < 30)
+
+    if(any(is_len.outwinreg_gt500&is_max.zscore_lt30)){
+        # There are segments that meet both conditions
+        ireg <- which(is_max.zscore_lt30 & is_len.outwinreg_gt500)
+    }else if(any(is_len.outwinreg_gt500)){
+        # Prioritize those with sufficient length
+        ireg <- which(is_len.outwinreg_gt500)
+    }else if(any(is_max.zscore_lt30)){
+        # If no one has sufficient length, choose the low max Z-score
+        ireg <- which(is_max.zscore_lt30)
+    }else{
+        # check for all if no one meets the criteria
+        ireg <- rep(TRUE, NROW(dt_zscores))
+    }
+
+    baseseg <- ireg[which.min(dt_zscores$Q1.zscore[ireg])]
+
+    return(baseseg)
+
+}
 
 
 
@@ -716,10 +694,16 @@ detect_bp__update_ref__sub_updateY <- function(sam,X_input,Y,Z,BPs2.level1.plus,
 #' @return list containing segmentation result
 #' @noRd
 segmentation_2nd_phase <- function(X,Y,cores=10,verbose=FALSE){
+
+    stopifnot_mtrx_or_df(X)
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_numeric1(cores)
+    stopifnot_logical1(verbose)
+
     n <- NCOL(X)
     d <- NROW(X)
 
-    Z <- t(apply(Y,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+    Z <- t(apply(Y,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
     segtable.list  <- vector("list", length=ncol(X))
     segtable2.list <- vector("list", length=ncol(X))
 
@@ -751,11 +735,8 @@ segmentation_2nd_phase <- function(X,Y,cores=10,verbose=FALSE){
     # 10 cores
     #     user   system  elapsed
     # 1770.612   31.677  268.775
-    for (sam in seq_len(ncol(X))) {
-        sampleID <- colnames(X)[sam]
-        segtable.list[[sam]] <- data.frame(id=sam, sampleID=colnames(X)[sam], segtable.lists[[sam]]$slst)
-        segtable2.list[[sam]] <- data.frame(id=sam,sampleID=colnames(X)[sam], segtable.lists[[sam]]$slst2)
-    }
+    segtable.list <- lapply(seq_len(ncol(X)),\(sam) data.frame(id=sam, sampleID=colnames(X)[sam], segtable.lists[[sam]]$slst))
+    segtable2.list <- lapply(seq_len(ncol(X)),\(sam) data.frame(id=sam,sampleID=colnames(X)[sam], segtable.lists[[sam]]$slst2))
 
     return(
         list(
@@ -776,9 +757,12 @@ segmentation_2nd_phase <- function(X,Y,cores=10,verbose=FALSE){
 #' Run ELViS using input raw depth matrix
 #'
 #' @param X Raw depth matrix of position x samples
-#' @param N_cores THe number of cores to use (Default : `min(10L,parallel::detectCores())`)
+#' @param N_cores The number of cores to use (Default : `min(10L,detectCores())`)
 #' @param reduced_output logical indicating whether to return only reduced output
 #' @param verbose logical whether to print out information for debugging
+#' @param save_intermediate_data logical indicating whether to save intermediate data as rds file. (default : FALSE)
+#' @param save_dir Name of the directory to save intermediate files in. (default : "save_dir")
+#' @param overwrite logical indicating whether to overwrite intermediate files. (default : FALSE)
 #'
 #' @return list containing ELViS run results
 #' @export
@@ -794,17 +778,22 @@ segmentation_2nd_phase <- function(X,Y,cores=10,verbose=FALSE){
 run_ELViS <-
     function(
         X
-        ,N_cores=min(10L,parallel::detectCores())
+        ,N_cores=min(10L,detectCores())
         ,reduced_output=TRUE
         ,verbose=FALSE
+        ,save_intermediate_data = FALSE
+        ,save_dir="save_dir"
+        ,overwrite=FALSE
     ){
+
+        # input will be chekced inside run_ELViS_core function
         run_ELViS_core(
             X
             ,N_cores=N_cores
-            ,save_intermediate_data = FALSE
+            ,save_intermediate_data = save_intermediate_data
             ,save_idx=NULL
-            ,save_dir="save_dir"
-            ,overwrite=FALSE
+            ,save_dir=save_dir
+            ,overwrite=overwrite
             ,reduced_output=reduced_output
             ,verbose=verbose
         )
@@ -816,7 +805,7 @@ run_ELViS <-
 #' Run ELViS using input raw depth matrix, parameters for devel included
 #'
 #' @param X Raw depth matrix of position x samples
-#' @param N_cores THe number of cores to use (Default : `min(10L,parallel::detectCores())`)
+#' @param N_cores Thcdcde number of cores to use (Default : `min(10L,detectCores())`)
 #' @param save_intermediate_data Logical indicating whether to save intermediate data.
 #' @param save_idx save file index
 #' @param save_dir directory to save intermediate files
@@ -828,7 +817,7 @@ run_ELViS <-
 #' @noRd
 run_ELViS_core <- function(
         X
-        ,N_cores=min(10,parallel::detectCores())
+        ,N_cores=min(10,detectCores())
         ,save_intermediate_data = FALSE
         ,save_idx=NULL
         ,save_dir="save_dir"
@@ -836,11 +825,19 @@ run_ELViS_core <- function(
         ,reduced_output=TRUE
         ,verbose=TRUE
 ){
+    stopifnot_mtrx_or_df(X)
+    stopifnot_numeric1(N_cores)
+    stopifnot_logical1(save_intermediate_data)
+    stopifnot_character1(save_dir)
+    stopifnot_logical1(overwrite)
+    stopifnot_logical1(reduced_output)
+    stopifnot_logical1(verbose)
 
     is_save <- save_intermediate_data
     if(is_save){
         dir.create(save_dir)
         if(is.null(save_idx)){save_idx <- 1}
+        stopifnot_numeric1(save_idx)
     }
 
     message("ELViS run starts.")
@@ -1027,10 +1024,10 @@ run_ELViS_core <- function(
     final_output <- rbindlist(segtable_p2$segtable2.list )
     final_call_tmp <-
         final_output %>%
-        dplyr::group_by(
+        group_by(
             .data$sampleID
         ) %>%
-        dplyr::summarise(N_seg = n(),N_state = length(unique(.data$state)))
+        summarise(N_seg = n(),N_state = length(unique(.data$state)))
     final_call <-
         list(segmented_samples = which(final_call_tmp$N_seg!=1), cnv_samples = which(final_call_tmp$N_state!=1))
     if(reduced_output){
@@ -1039,7 +1036,7 @@ run_ELViS_core <- function(
                 is_reduced_output = TRUE,
                 final_output = final_output,
                 final_call = final_call,
-                new_Y_p2 = new_Y_p2 %>% magrittr::set_colnames(colnames(X))
+                new_Y_p2 = new_Y_p2 %>% set_colnames(colnames(X))
             )
         )
     }else{
@@ -1075,11 +1072,11 @@ run_ELViS_core <- function(
 #' Get new baselines according to criteria user designates
 #'
 #' @param result Run result
-#' @param mode Indecate how new baseline should be set ("longest","shortest")
+#' @param mode Indicate how new baseline should be set ("longest","shortest")
 #'
 #' @return a integer vector indicating new baseline index for each sample
 #' @export
-#' @rawNamespace import(dplyr, except=c(as_data_frame,between,collapse,desc,first,groups,intersect,last,setdiff,union))
+#' @importFrom dplyr n group_by summarise ungroup group_split slice_max slice_min filter mutate transmute select
 #'
 #' @examples
 #'
@@ -1092,27 +1089,30 @@ run_ELViS_core <- function(
 #'
 get_new_baseline <- function(result,mode="longest"){
 
+    stopifnot_character1(mode)
+    stopifnot_ELViS_result(result)
+
     tmp_data <-
         result$final_output %>%
-        dplyr::group_by(id,.data$state) %>%
-        dplyr::summarise(total_length = sum(.data$end-.data$begin+1)) %>%
-        dplyr::ungroup()
+        group_by(id,.data$state) %>%
+        summarise(total_length = sum(.data$end-.data$begin+1)) %>%
+        ungroup()
 
 
     if(mode == "longest"){
 
         new_baseline <-
             tmp_data %>%
-            dplyr::group_by(id) %>%
-            dplyr::slice_max(.data$total_length,n = 1) %>%
+            group_by(id) %>%
+            slice_max(.data$total_length,n = 1) %>%
             {.$state}
 
     }else if(mode == "shortest"){
 
         new_baseline <-
             tmp_data %>%
-            dplyr::group_by(id) %>%
-            dplyr::slice_min(.data$total_length,n = 1) %>%
+            group_by(id) %>%
+            slice_min(.data$total_length,n = 1) %>%
             {.$state}
 
     }else{
@@ -1129,7 +1129,7 @@ get_new_baseline <- function(result,mode="longest"){
 anno_color_var <- function( variable, palette=NULL, palette_id=NULL, palette_order=NULL,
                             paired=FALSE, cont_midval=NULL) {
     variable0 <- variable
-    if (sum(class(variable) %in% c("double","numeric")) > 0) {
+    if ( is(variable,"double") | is(variable, "numeric") ) {
         if (is.null(palette) & is.null(palette_id)) palette_id <- 1
         if (is.null(palette)) palette <- names(choi_continuous_palettes)[palette_id]
         colors <- choi_continuous_palettes[[eval(palette)]]
@@ -1143,7 +1143,7 @@ anno_color_var <- function( variable, palette=NULL, palette_id=NULL, palette_ord
         }
         return(list(var=variable0, var_col=var_col))
     } else {
-        if (sum(class(variable) %in% "factor") == 0) variable <- factor(variable)
+        if (is(variable,"factor")) variable <- factor(variable)
         if (length(levels(variable))>2) paired <- FALSE
         if (paired) {
             if (is.null(palette) & is.null(palette_id)) palette_id <- 1
@@ -1152,7 +1152,7 @@ anno_color_var <- function( variable, palette=NULL, palette_id=NULL, palette_ord
             var_col <- colors[seq_len(length(levels(variable)))]
             names(var_col) <- levels(variable)
         } else {
-            if (sum(class(variable) %in% c("ordered")) > 0) {
+            if (is(variable,"ordered") ) {
                 if (is.null(palette) & is.null(palette_id)) palette_id <- 3
                 if (is.null(palette)) palette <- names(choi_ordered_palettes)[palette_id]
                 colors <- choi_ordered_palettes[[eval(palette)]]
@@ -1181,7 +1181,15 @@ anno_color_var <- function( variable, palette=NULL, palette_id=NULL, palette_ord
 
 #' @noRd
 detect_BPs <- function(y, half.width=250, prob.cutoff=0.95, q.Y=5) {
+
+    stopifnot_numeric_ge1(y)
+    stopifnot_numeric1(half.width)
+    stopifnot_probs(prob.cutoff)
+    stopifnot_numeric1(q.Y)
+
+    # obtain rolling quantile of abolute read depth changes
     rollYquant0 <- rollapply(abs(y),width=2*half.width,FUN=function(x) quantile(x,probs=prob.cutoff))
+    # for the first half-window and last half-window without value, we borrowed the nearest possible values.
     rollYquant <- c(rep(rollYquant0[1],half.width), rollYquant0, rep(tail(rollYquant0,1),half.width-1))
 
     ## remove consecutive BPs
@@ -1205,9 +1213,49 @@ detect_BPs <- function(y, half.width=250, prob.cutoff=0.95, q.Y=5) {
 #' calculate pooled standard deviation
 #' @noRd
 pooled_sd <- function(s1, s2, n1, n2) {
+    stopifnot_numeric1(s1)
+    stopifnot_numeric1(s2)
+    stopifnot_numeric1(n1)
+    stopifnot_numeric1(n2)
     sqrt(((n1 - 1) * s1^2 + (n2 - 1) * s2^2) / (n1 + n2 - 2))
 }
 
+
+
+get_dt_zscores <- function(nseg,segbps,Y,sam){
+    stopifnot_numeric1(nseg)
+    stopifnot(is(segbps,"list"))
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_numeric1(sam)
+
+    dt_zscores <-
+        seq_len(nseg) %>%
+        lapply(\(js){
+            outwinreg <- segbps[[js]]
+            newmed <- median(Y[outwinreg,sam])
+            if (newmed > 0.05) {
+                # evaluate a segment - when divided by its median, it pushes per-position normalized depths of current sample to the center of the distribution over all samples
+                Y.tmp <- Y
+                Y.tmp[,sam] <- Y[,sam]/newmed
+                Z.tmp <- t(apply(Y.tmp,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
+                output <- data.frame(
+                    Q1.zscore = quantile(abs(Z.tmp[,sam]),probs=0.25)
+                    ,max.zscore = max(abs(Z.tmp[,sam]))
+                )
+            }else{
+                output <- data.frame(
+                    Q1.zscore = 1000
+                    ,max.zscore = 1000
+                )
+
+            }
+            return(output)
+        }) %>%
+        rbindlist() %>%
+        as.data.frame()
+
+    return(dt_zscores)
+}
 
 #' Get breakpoints
 #'
@@ -1221,20 +1269,32 @@ pooled_sd <- function(s1, s2, n1, n2) {
 #' @param BP.xdepth minimum change of raw depth
 #'
 #' @return data.frame containing segmentation results
-#' @rawNamespace import(igraph, except=c(as_data_frame,degree,groups,union))
-#' @import stringr
+#' @importFrom igraph make_empty_graph V V<- E E<- add_edges induced_subgraph cliques
+#' @importFrom methods is
 #' @noRd
 get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
                                 q.Y.BP1 = 5,
                                 q.Y.BP2 = 10,
                                 BP.ydepth = 0.08, BP.xdepth = 10) {
+
+    stopifnot_mtrx_or_df(X)
+    stopifnot_mtrx_or_df(Y)
+    stopifnot_character_ge1(sampleID)
+    stopifnot_numeric1(q.Y.BP1)
+    stopifnot_numeric1(q.Y.BP2)
+    stopifnot_numeric1(BP.ydepth)
+    stopifnot_numeric1(BP.xdepth)
+
+
     if (is.numeric(sampleID)) {
         sam <- sampleID
     } else {
         sam <- which(colnames(X)==sampleID)
     }
     if (is.null(Z)) {
-        Z <- t(apply(Y,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+        Z <- t(apply(Y,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
+    }else{
+        stopifnot_mtrx_or_df(Z)
     }
 
     d <- NROW(X)
@@ -1251,9 +1311,9 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
     BPs.cuty <- which(abs(ydiff) > BP.ydepth)
 
 
-    BPs.level1 <- base::intersect(BPs.q05, BPs.cutx)
-    BPs.level2 <- base::intersect(BPs.q10, BPs.cutx)
-    BPs.level1.plus <- base::intersect(BPs.level1, BPs.cuty)
+    BPs.level1 <- intersect(BPs.q05, BPs.cutx)
+    BPs.level2 <- intersect(BPs.q10, BPs.cutx)
+    BPs.level1.plus <- intersect(BPs.level1, BPs.cuty)
 
     BPs <- unique(c(BPs.level1.plus, BPs.level2))
 
@@ -1273,34 +1333,15 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
         segment.table <- data.frame(seg = seq_len(nseg2),
                                     begin = c(1,srt.BPs+1),
                                     end = c(srt.BPs, d))
-        segbps <- lapply(seq_len(nseg), FUN=function(i) segment.table$begin[i]:segment.table$end[i])
-        segbps[[1]] <- c(segbps[[1]], segment.table$begin[nseg2]:segment.table$end[nseg2])
+
+        segbps <- get_segbps(nseg,nseg2,segment.table)
 
         ## Find a baseline
-        Y.tmp <- Y
-        Q1.zscore <- max.zscore <- mean.zscore.outwinreg <- rep(1000,nseg)
-        med.outwinreg <- len.outwinreg <- rep(0,nseg)
-        names(mean.zscore.outwinreg) <- seq_len(nseg)
-        for (js in seq_len(nseg)) {
-            outwinreg <- segbps[[js]]
-            len.outwinreg[js] <- length(outwinreg)
-            newmed <- median(Y[outwinreg,sam])
-            med.outwinreg[js] <- newmed
-            if (newmed > 0.05) {
-                Y.tmp[,sam] <- Y[,sam]/newmed
-                Z.tmp <- t(apply(Y.tmp,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
-                mean.zscore.outwinreg[js] <- mean(abs(Z.tmp[outwinreg,sam]))
-                Q1.zscore[js] <- quantile(abs(Z.tmp[,sam]),probs=0.25)
-                max.zscore[js] <- max(abs(Z.tmp[,sam]))
-            }
-        }
-        ireg <- which((max.zscore < 30) & (len.outwinreg > 500))
-        if (length(ireg) > 0) {
-            baseseg <- ireg[which.min(Q1.zscore[ireg])]
-        } else {
-            ireg <- which(max.zscore < 30)
-            baseseg <- ireg[which.min(Q1.zscore[ireg])]
-        }
+        len.outwinreg <- vapply(segbps, FUN = length, FUN.VALUE = integer(1))
+        dt_zscores <- get_dt_zscores(nseg,segbps,Y,sam)
+
+
+        baseseg <- get_baseseg(dt_zscores,len.outwinreg)
 
         ## Make a table for each segment
         seg_len_vec <- vapply(segbps,FUN=length,0)
@@ -1319,7 +1360,7 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
         ## Find more base segments
         baseseg2 <- which(abs(segtable$mu.y - segtable$mu.y[baseseg]) < segtable$sd.y[baseseg])
         baseseg3 <- which(abs(segtable$mu.z - segtable$mu.z[baseseg]) < segtable$sd.z[baseseg])
-        segtable$baseline[base::intersect(baseseg2,baseseg3)] <- 1
+        segtable$baseline[intersect(baseseg2,baseseg3)] <- 1
         segtable$state <- segtable$baseline
 
         i_nonbase <- which(segtable$baseline==0)
@@ -1348,14 +1389,13 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
                             is_simil_y <- abs(diff(segtable$mu.y[i_tmp])) < psd_y
                             psd_z <- pooled_sd(segtable$sd.z[i_tmp[1]],segtable$sd.z[i_tmp[2]],seg_len_vec[i_tmp[1]],seg_len_vec[i_tmp[2]])
                             is_simil_z <- abs(diff(segtable$mu.z[i_tmp])) < psd_z
-
                             if(is_simil_y&is_simil_z){
                                 out <- list(i_tmp)  # same seg
                             }else{
                                 out <- as.list(i_tmp) # different seg
                             }
                         }else if(length(i_tmp)>=3){
-                            i_tmp_cmb <- utils::combn(i_tmp,2)
+                            i_tmp_cmb <- combn(i_tmp,2)
                             max_rel_d <- i_tmp_cmb |>
                                 apply(2,\(j_tmp){
                                     psd_y <- pooled_sd(segtable$sd.y[j_tmp[1]],segtable$sd.y[j_tmp[2]],seg_len_vec[j_tmp[1]],seg_len_vec[j_tmp[2]])
@@ -1381,16 +1421,27 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
                     }) |> unlist(recursive = FALSE)
 
                 # update group
-                for( k_tmp in  i_grouped_lst[order(vapply(i_grouped_lst,min,0))]){
-                    segtable$state[k_tmp] <- max(segtable$state) + 1
-                }
+                i_grouped_lst_ord <-
+                    c(
+                        list(base = which(segtable$state == 1 )),
+                        i_grouped_lst[order(vapply(i_grouped_lst,min,0))]
+                    )
+
+                state_numbers <-
+                    seq_along(i_grouped_lst_ord) %>%
+                    lapply(\(idx){
+                        rep(idx,length(i_grouped_lst_ord[[idx]]))
+                    }) %>%
+                    unlist
+
+                segtable$state[unlist(i_grouped_lst_ord)] <- state_numbers
 
             }
         }
 
 
         segtable2 <- rbind(segtable,segtable[1,])
-        segtable2[nseg2,seq_len(3)] <- segment.table[nseg2,seq_len(3)]
+        segtable2[nseg2,c(1,2,3)] <- segment.table[nseg2,c(1,2,3)]
         return(segtable2)
     } else {
         segtable <- data.frame( seg = 1, begin = 1, end = dim(testdata)[1],
@@ -1405,6 +1456,12 @@ get_BPsegment_v2 <- function(   X, Y, Z=NULL, sampleID,
 
 
 gen_dist_graph <- function(i_tmp,i_tmp_cmb,max_rel_d,th_d){
+
+    stopifnot_numeric_ge1(i_tmp)
+    stopifnot(is(i_tmp_cmb,"matrix"))
+    stopifnot_numeric_ge1(max_rel_d)
+    stopifnot_numeric1(th_d)
+
     max_rel_s <- 1/(max_rel_d+1)
 
     is_close <- max_rel_d < th_d
@@ -1425,11 +1482,14 @@ gen_dist_graph <- function(i_tmp,i_tmp_cmb,max_rel_d,th_d){
 
 
 clique_weight <- function(clique, graph) {
+    stopifnot(is(graph,"igraph"))
+    stopifnot(is(clique,"igraph.vs"))
     subg <- induced_subgraph(graph, vids = clique)
     return(sum(E(subg)$weight))
 }
 
 get_subcl <- function(g){
+    stopifnot(is(g,"igraph"))
     cliques_list <- cliques(g)
 
     clique_weights <- vapply(X = cliques_list, FUN = clique_weight,FUN.VALUE = numeric(1), graph = g)
@@ -1453,27 +1513,18 @@ get_subcl <- function(g){
 
 
 
+get_window_core <- function(y,cutoff=1,min.length=10) {
+    stopifnot_numeric_ge1(y)
+    stopifnot_numeric1(cutoff)
+    stopifnot_numeric1(min.length)
 
-get_window2 <- function(y,cutoff=1,min.length=10) {
+    y_ofs <- y-cutoff
     d <- length(y)
-    ips <- which((y-cutoff)[seq_len(d-1)]*(y-cutoff)[2:d]<=0)
+    ips <- which(y_ofs[seq_len(d-1)]*y_ofs[2:d]<=0)
     win <- matrix(c(1,rep(ips,each=2),d),ncol=2,byrow=TRUE)
     win <- win[which((win[,2] - win[,1])>min.length),]
     return(win)
 }
-
-get_window <- function(y,pos=NULL,cutoff=1,min.length=10) {
-    if (is.null(pos)) {
-        return(get_window2(y=y,cutoff=cutoff,min.length=min.length))
-    } else {
-        wincan <- get_window2(y=y,cutoff=cutoff,min.length=min.length)
-        windiff <- wincan - pos
-        win.tmp <- wincan[which((windiff[,1]*windiff[,2])<=0),]
-        return(win.tmp)
-    }
-}
-
-
 
 #' Title
 #'
@@ -1485,6 +1536,9 @@ get_window <- function(y,pos=NULL,cutoff=1,min.length=10) {
 #' @noRd
 t_col <- function(color, percent = 50, name = NULL) {
 
+    stopifnot_character1(color)
+    stopifnot_percent(percent)
+    if(!is.null(name)) stopifnot_character1(name)
     ## Get RGB values for named color
     rgb.val <- col2rgb(color)
 
@@ -1499,6 +1553,8 @@ t_col <- function(color, percent = 50, name = NULL) {
 }
 
 compute_CN <- function(segment.table, base.state=1) {
+    stopifnot_numeric1(base.state)
+    stopifnot_segment.table(segment.table)
     if (is.null(base.state)) base.state <- 1
     base.idx <- which(segment.table$state==base.state)
     w <- (segment.table$end - segment.table$begin)[base.idx]
@@ -1510,19 +1566,36 @@ compute_CN <- function(segment.table, base.state=1) {
 
 
 smooth_segment <- function(segment.table) {
+    stopifnot_segment.table(segment.table)
     output <- segment.table
     state <- unique(output$state)
-    for (js in state) {
-        idx <- which(segment.table$state==js)
-        w <- (segment.table$end - segment.table$begin)[idx]
-        w <- w / sum(w)
-        output$mu.x[idx] <- sum(w*segment.table$mu.x[idx])
-        output$mu.y[idx] <- sum(w*segment.table$mu.y[idx])
-        output$mu.z[idx] <- sum(w*segment.table$mu.z[idx])
-        output$sd.x[idx] <- sum(w*segment.table$sd.x[idx]) # this is not correct, just for convenience
-        output$sd.y[idx] <- sum(w*segment.table$sd.y[idx]) # this is not correct, just for convenience
-        output$sd.z[idx] <- sum(w*segment.table$sd.z[idx]) # this is not correct, just for convenience
-        output$cohort.y[idx] <- sum(w*segment.table$cohort.y[idx])
-    }
+
+    state_list <-
+        state %>%
+        lapply(\(js){
+            idx <- which(segment.table$state==js)
+        })
+    updated_metric_unordered <-
+        state_list %>%
+        lapply(\(idx){
+            w <- (segment.table$end - segment.table$begin)[idx]
+            w <- w / sum(w)
+            rep(
+                c(
+                    sum(w*segment.table$mu.x[idx])
+                    ,sum(w*segment.table$mu.y[idx])
+                    ,sum(w*segment.table$mu.z[idx])
+                    ,sum(w*segment.table$sd.x[idx])
+                    ,sum(w*segment.table$sd.y[idx])
+                    ,sum(w*segment.table$sd.z[idx])
+                    ,sum(w*segment.table$cohort.y[idx])
+                ),
+                length(idx)
+            ) %>%
+                matrix(nrow=length(idx),byrow = TRUE)
+        }) %>%
+        do.call(what = rbind)
+
+    output[,c("mu.x","mu.y","mu.z","sd.x","sd.y","sd.z","cohort.y")] <- updated_metric_unordered[order(unlist(state_list)),]
     return(output)
 } # end of function

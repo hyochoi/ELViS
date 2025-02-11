@@ -1,15 +1,32 @@
 ---
 title: "ELViS Vignette"
-author: "Jin-Young Lee,Ph.D. and Hyo Young Choi, Ph.D."
-date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
-vignette: >
-    %\VignetteIndexEntry{ELViS_Toy_Example}
-    %\VignetteEngine{knitr::rmarkdown}
-    %\VignetteEncoding{UTF-8}
+author:
+- name: Hyo Young Choi
+  affiliation: Department of Preventive Medicine, Division of Biostatistics, University of Tennessee Health Science Center, Memphis, TN
+- name: Jin-Young Lee
+  affiliation: Center for Cancer Research, University of Tennessee Health Science Center, Memphis, TN
+- name: Jeremiah R. Holt
+  affiliation: Department of Medicine, College of Medicine, University of Tennessee Health Science Center, Memphis, TN
+- name: Katherine A. Hoadley
+  affiliation: Lineberger Comprehensive Cancer Center, University of North Carolina, Chapel Hill, NC
+- name: D. Neil Hayes
+  affiliation: Department of Preventive Medicine, Division of Biostatistics, University of Tennessee Health Science Center, Memphis, TN
+output:
+  BiocStyle::html_document:
+    toc_float: true
+  BiocStyle::pdf_document: default
+vignette: |
+  %\VignetteIndexEntry{Authoring R Markdown vignettes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
+
+
+
+
 ```{r, include = FALSE}
+library(knitr)
 knitr::opts_chunk$set(
     collapse = TRUE,
     comment = "#>"
@@ -17,36 +34,88 @@ knitr::opts_chunk$set(
 ```
 
 
+# 1. Introduction
 
+Tumor viruses cause a significant proportion of human cancers by hijacking cell signaling and inducing proliferation. For example, HPV E6 and E7 proteins can promote tumorigenesis by inducing degradation of tumor suppressors p53 and pRb. Despite the importance of the dosages of the viral genes like these, existing tools cover viral integration, emphasizing the need for viral copy number analysis framework.
 
+## 1.1 Motivation for submitting to Bioconductor
 
-# 1. DESCRIPTION
+ELViS (Estimating Copy Number Levels of Viral Genomic Segments) is an R package that addresses this need through the analysis of copy numbers within viral genomes. ELViS utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. It also provides publish-ready figures, including histograms of read depths for sample filtering, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing overall pictures with multiple types of data with integrative clustering of samples. Taken together, our framework helps computational biologists and bioinformaticians to analyze viral copy number changes with ease.
 
-## 1.1 R Package for Estimating Copy Number Levels of Viral Genome Segments Using Base-Resolution Read Depth Profile
-
-Base-resolution copy number analysis of viral genome. Utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. Provides publish-ready figures, including histograms of read depths, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing multiple types of data with integrative clustering of samples.
 
 ------------------------------------------------------------------------
 
 # 2. Run Example
 
-## 2.1 Environment Setup and Package Installation
+## 2.1 Data preparation
 
-```{r,eval=FALSE}
-# Install BiocManager if not already
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-    install.packages("BiocManager")
-}
 
-# Install devtools if not already
-if (!requireNamespace("devtools", quietly = TRUE)) {
-    install.packages("devtools")
-}
+#### 2.1.1 Virus Reference Genome File
 
-# Ensure repos includes both CRAN and Bioconductor repositories
-options(repos = BiocManager::repositories())
-devtools::install_github("https://github.com/hyochoi/ELViS.git")
+The following reference files are included in extdata directory of ELViS.
+
+ - HPV16.fa
+ - HPV16.fa.fai
+ - HPV16REF_PaVE.gff
+
+HPV16.fa is a reference sequence file with the associated fasta index file HPV16.fa.fai
+HPV16REF_PaVE.gff are viral gene annotation file in GFF3 format.
+They were downloaded from PaVE database (https://pave.niaid.nih.gov/locus_viewer?seq_id=HPV16REF)
+
+
+You can get your own files(.fa,.fai,.gff) for the virus of your interest.
+
+But, you should check if this viral reference genome FASTA(.fa) file and gene annotation GFF3(.gff) file have the same set of sequence names.
+
+For the FASTA file, we recommend you add viral genome files to the host genome file (i.e. human reference genome hg38) to simultaneously align your reads to both host and viral genome. Multiple viral genome can be added. The reason we recommend this is as such. If there is a significant portion of viral reads in the sequencing data, and you align reads to either host or viral genome, there is a higher chance of false alignment and time it takes to finish the read alignment step can be extended.  
+
 ```
+# linux bash
+cat hg38.fa virus1.fa virus2.fa > hg38_with_virus.fa
+```
+
+Even if you use FASTA file containing both viral genomes and host genome, ELViS require a separate GFF file for each virus. Don't merge GFF3 files together for using ELViS.
+
+FASTA index file(.fai) can be created by running `samtools faidx`. For more detail, please refer to https://www.htslib.org/doc/samtools-faidx.html 
+
+```
+# linux bash
+samtools faidx hg38_with_virus.fa
+```
+
+
+#### 2.1.2 BAM Files
+\label{section-2-2-1}
+The following BAM files are included in extdata directory of ELViS.
+
+ - Control_100X_1102.bam
+ - Control_100X_1102.bam.bai
+ - Control_100X_1119.bam
+ - Control_100X_1119.bam.bai
+
+These are simulation data made using w-WESSIM-2. (https://github.com/GeorgetteTanner/w-Wessim2)
+Briefly, sequencing reads were simulated using this tool and aligned to HPV16.fa to generate the BAM file.
+
+
+For your case, you should align your sequencing reads in FASTQ format to the reference genome prepared according to instructions in [2.2.1](#section-2-2-1). As mentioned, we recommend aligning reads to a FASTQ file contains host genome and viral genomes.
+
+However, you may have discovered our package after aligning all the reads to the host genome only already. No worries since there is a work around.
+
+In that case, you can extract the unaligned reads and align that to viral genome FASTA file.
+
+For example, say you have a BAM file `seq_align_to_host.bam` that is aligned to host genome only.
+
+Extract unaligned reads using samtools as follows.
+
+```
+samtools view seq_align_to_host.bam --incl-flags 12 -b | # extract reads that are unaligned or those with unaligned mates
+samtools sort -n | # sort reads by read name
+samtools fastq -1 seq_r1.fastq -2 seq_r2.fastq # save as read1 and read2 files.
+```
+
+Align `seq_r1.fastq` and `seq_r2.fastq` to merged reference of viral genomes using sequence aligners of your choice, such as BWA MEM or Bowtie2.
+
+
 
 ## 2.2 Generate Raw Read Depth Matrix with Toy Examples
 
@@ -63,6 +132,7 @@ theme_set(theme_bw())
 
 
 Prepare BAM file name vector.
+
 
 ```{r}
 analysis_dir = tempdir()
@@ -95,14 +165,13 @@ if( os_name == "Windows" ){
 target_virus_name = "gi|333031|lcl|HPV16REF.1|"
 
 # temporary file directory
-tmpdir="./tmpdir"
-dir.create(tmpdir,recursive = TRUE)
+tmpdir=tempdir()
 
 # generate read depth matrix
 system.time({
     mtrx_samtools_reticulate__example = 
         get_depth_matrix(
-            bam_files = bam_files,target_virus_name = target_virus_name
+            bam_files = bam_files,coord_or_target_virus_name = target_virus_name
             ,mode = "samtools_basilisk"
             ,N_cores = N_cores
             ,min_mapq = 30
@@ -112,8 +181,6 @@ system.time({
         )
 })
 
-# remove temporary directory
-unlink(tmpdir,recursive=TRUE)
 
 ```
 
@@ -132,7 +199,7 @@ if(!SKIP){
     system.time({
         mtrx_Rsamtools = 
             get_depth_matrix(
-                bam_files = bam_files,target_virus_name = target_virus_name
+                bam_files = bam_files,coord_or_target_virus_name = target_virus_name
                 ,mode = "Rsamtools"
                 ,N_cores = N_cores
                 ,max_depth = 1e5
@@ -148,7 +215,7 @@ if(!SKIP){
 system.time({
     mtrx_samtools_reticulate = 
         get_depth_matrix(
-            bam_files = bam_files,target_virus_name = target_virus_name
+            bam_files = bam_files,coord_or_target_virus_name = target_virus_name
             ,mode = "samtools_basilisk"
             ,N_cores = N_cores
             ,min_mapq = 30
@@ -167,7 +234,7 @@ if(!SKIP){
     system.time({
         mtrx_samtools = 
             get_depth_matrix(
-                bam_files = bam_files,target_virus_name = target_virus_name
+                bam_files = bam_files,coord_or_target_virus_name = target_virus_name
                 ,mode = "samtools_custom"
                 ,N_cores = N_cores
                 ,min_mapq = 30

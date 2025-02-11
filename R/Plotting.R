@@ -1,17 +1,78 @@
-utils::globalVariables(c(".", "%>%"))
+globalVariables(c(".", "%>%"))
+
+#' Sample filtering threshold examination plot.
+#'
+#' @param mtrx Matrix or data.frame. Rows are positions and columns are samples.
+#' @param th Numeric. Sample filtering threshold
+#' @param title_txt figure title.
+#' @param smry_fun function to calculate summary metric to apply sample filter threshold to
+#' @param ... additional argument for `smry_fun` argument.
+#'
+#' @return ggplot2 object
+#' @export
+#' @import ggplot2
+#' @importFrom glue glue
+#' @importFrom stringr str_to_title str_extract_all str_replace_all str_split str_replace
+#'
+#' @examples
+#' data(mtrx_samtools_reticulate)
+#' th <- 50
+#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun=max)
+#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = quantile,prob=0.95)
+#' depth_hist(mtrx_samtools_reticulate,th=th,smry_fun = mean)
+depth_hist <- function(mtrx,th=50,title_txt=NULL,smry_fun=max,...){
+
+    ## input checking
+    stopifnot_mtrx_or_df(mtrx)
+    stopifnot_numeric1(th)
+
+    if(is.null(title_txt)){
+        dot_info <- capture_params_glue(...)
+        fun_name <- str_to_title(deparse(substitute(smry_fun)))
+        if(length(dot_info)==0){
+            title_txt <- (glue("{fun_name} Depth Distribution"))
+        }else{
+            title_txt <- (glue("{fun_name} {dot_info} Depth Distribution"))
+        }
+
+    }
+
+    stopifnot_character1(title_txt)
+    stopifnot(is(smry_fun,"function"))
+    ## input checking done
+
+    ggplot(
+        data.frame(Max_Depth = apply(mtrx,2,smry_fun,...))
+    ) +
+        aes(x = .data$Max_Depth) +
+        geom_histogram(col="gray30",fill="gray80",) +
+        geom_rect(aes(xmin = 0, xmax = th, ymin = 0, ymax = Inf),
+                  fill = alpha("gray",0.01)) +
+        geom_vline(xintercept = th,col="red",linetype="dashed") +
+        scale_x_continuous(trans="log10") +
+        ggtitle(title_txt)
+
+}
+
+
+
+#' @noRd
+log10p1_trans <- trans_new(
+    name = "log10p1",
+    transform = function(x) log10(x + 1),
+    inverse = function(x) 10^x - 1,
+    breaks = function(x) log_breaks(base = 10)(x + 1)
+)
 
 
 
 
 #' @import ggplot2
-#' @import rmarkdown
 #' @importFrom txdbmaker makeTxDbFromGFF
 #' @importFrom GenomicFeatures transcriptsBy cdsBy genes
-#' @rawNamespace import(GenomicRanges, except=c(subtract))
-#' @rawNamespace import(IRanges, except=c(slice,mad,median,quantile,sd))
-#' @rawNamespace import(BiocGenerics, except=c(mad,sd,combine,Position,normalize,path,image,density,setequal))
-#' @rawNamespace import(RBGL, except=c(transitivity,bfs,dfs))
-#' @import rmarkdown
+#' @rawNamespace import(GenomicRanges, except=c(subtract,intersect))
+#' @rawNamespace import(IRanges, except=c(slice,mad,median,quantile,sd,intersect))
+#' @rawNamespace import(BiocGenerics, except=c(mad,sd,combine,Position,normalize,path,image,density,setequal,intersect))
 #' @noRd
 get_gene_anno_plot_ori <- function(
         gff3_fn,
@@ -29,17 +90,11 @@ get_gene_anno_plot_ori <- function(
     arrow_spacing_bp <- as.integer(arrow_spacing*space_length)
 
     # prep annotation
-    txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
-    all_features <- transcriptsBy(txdb, by = "gene")
-    cds <- cdsBy(txdb, by = "gene")
-    if(!is.null(exclude_genes)){
-        cds <- cds[!(names(cds) %in% exclude_genes)]
-    }
-
-    genes <- genes(txdb)
-    if(!is.null(exclude_genes)){
-        genes <- genes[!(genes$gene_id %in% exclude_genes)]
-    }
+    gff_parsed <- parse_gff(gff3_fn,exclude_genes)
+    txdb <- gff_parsed$txdb
+    genes <- gff_parsed$gene
+    cds <- gff_parsed$cds
+    all_features <- gff_parsed$all_features
 
     genes_margin <- genes + annot_halfmargin_bp
     start(genes_margin) <- pmax(1,start(genes_margin))
@@ -54,12 +109,12 @@ get_gene_anno_plot_ori <- function(
         findOverlaps() %>%
         sort %>%
         as.data.frame() %>%
-        dplyr::filter(.data$queryHits>.data$subjectHits)
+        filter(.data$queryHits>.data$subjectHits)
 
     # non-overlapping -> level 1
     ylevels[!(seq_along(ylevels) %in% ovlp_status$queryHits)] <- 1
 
-    for(ovlp in ovlp_status %>% dplyr::group_split(.data$queryHits)){
+    for(ovlp in ovlp_status %>% group_split(.data$queryHits)){
         q_tmp <- ovlp$queryHits[1]
         s_tmp <- ovlp$subjectHits
         # take the lowest level among those not taken already by overlapping element
@@ -116,8 +171,8 @@ get_gene_anno_plot_ori <- function(
 
 
 
-    cds_plotdata__CDS  <- cds_plotdata%>% dplyr::filter(.data$Type=="cds")
-    cds_plotdata__INTRON <- cds_plotdata %>% dplyr::filter(.data$Type=="intron")
+    cds_plotdata__CDS  <- cds_plotdata%>% filter(.data$Type=="cds")
+    cds_plotdata__INTRON <- cds_plotdata %>% filter(.data$Type=="intron")
     cds_plotdata__INTRON_arrow_pos <-
         seq_len(NROW(cds_plotdata__INTRON)) %>%
         lapply(\(i_tmp){
@@ -143,20 +198,8 @@ get_gene_anno_plot_ori <- function(
     }
 
 
-    is_custom_palette <- FALSE
-    # if color palette can cover all genes, use the scale
-    if(length(col_pal)>=length(Gene_levels)){
-        is_custom_palette <- TRUE
-        #
-        if(is.null(names(col_pal))||length(setdiff(cds_plotdata$Gene,names(col_pal)))!=0){ #pass if col pallete designate all colors
-            col_pal_fin <- structure(
-                col_pal[seq_len(length(Gene_levels))],
-                names = Gene_levels
-            )
-        }else{
-            col_pal_fin <- col_pal
-        }
-    }
+
+    col_pal_fin <- make_col_pal_fin_gene(col_pal_gene=col_pal,Gene_levels=Gene_levels)
 
 
 
@@ -187,7 +230,7 @@ get_gene_anno_plot_ori <- function(
     annot_gene <-
         annot_gene +
         geom_text(
-            data = cds_plotdata__CDS %>% dplyr::group_by(.data$Gene) %>% dplyr::slice_min(.data$Start),
+            data = cds_plotdata__CDS %>% group_by(.data$Gene) %>% slice_min(.data$Start),
             mapping = aes(x=.data$Start,y=.data$Y_Level+annot_half_height,label=.data$Gene),col="black",hjust=0,vjust=-0.3
         ) +
         ylim(1-annot_half_height,max(cds_plotdata$Y_Level)*(1.25))
@@ -196,22 +239,19 @@ get_gene_anno_plot_ori <- function(
     annot_gene_fin <-
         annot_gene +
         theme_void() +
-        theme(legend.position = "none") #+ xlim(0,NROW(mtrx_for_plotting)+1)
+        theme(legend.position = "none")
 
-    if(is_custom_palette){
-        annot_gene_fin <-
-            annot_gene_fin +
-            scale_color_manual(values = col_pal_fin) +
-            scale_fill_manual(values = col_pal_fin)
-
-    }
+    annot_gene_fin <-
+        annot_gene_fin +
+        scale_color_manual(values = col_pal_fin) +
+        scale_fill_manual(values = col_pal_fin)
 
     return(annot_gene_fin)
 }
 
 
 
-get_gene_anno_plot <- memoise::memoise(get_gene_anno_plot_ori)
+get_gene_anno_plot <- memoise(get_gene_anno_plot_ori)
 
 
 
@@ -225,11 +265,11 @@ get_gene_anno_plot <- memoise::memoise(get_gene_anno_plot_ori)
 #' @param col_pal_cn color palette for non-baseline copy number states
 #' @param scale_plot_yaxis Determine whether to scale the plot so that the lower bound of the y-axis is set to the lesser value between 0 and the minimum data value. (Default : TRUE)
 #'
-#' @import memoise
+#' @importFrom memoise memoise
 #' @importFrom grDevices axisTicks axisTicks col2rgb colorRampPalette palette rainbow rgb
 #' @importFrom graphics abline axis box image layout lines mtext par plot.new points polygon segments text title
 #' @importFrom stats as.dendrogram cutree density dist hclust median quantile sd mad
-#' @importFrom utils read.csv tail
+#' @importFrom utils read.csv tail globalVariables combn
 #' @return ggplot object of pile-up plot
 #'
 #' @noRd
@@ -239,7 +279,7 @@ plot_pileUp <-
 
         baseline_target <- baseline
         plotdata <-
-            data.frame(value = x) %>% dplyr::mutate(pos=seq_len(n()))
+            data.frame(value = x) %>% mutate(pos=seq_len(n()))
 
         nonbase_states <-
             target_cn_table$state[target_cn_table$state!=baseline_target]
@@ -259,7 +299,7 @@ plot_pileUp <-
 
             target_cn_table <-
                 target_cn_table %>%
-                dplyr::mutate(
+                mutate(
                     CN_state_plotting =
                         ifelse(.data$state==baseline_target,"baseline",glue("s{.data$state}")) %>%
                         factor(levels=c("baseline",glue("s{sort(unique(.data$state[.data$state!=baseline_target]))}")))
@@ -273,7 +313,7 @@ plot_pileUp <-
             )
             target_cn_table <-
                 target_cn_table %>%
-                dplyr::mutate(
+                mutate(
                     CN_state_plotting = factor("baseline",levels="baseline")
                 )
         }
@@ -323,7 +363,7 @@ plot_pileUp <-
 #' @param baseline the state index to set as baseline (Default : `1`)
 #' @param annot_margin minimum of margin between gene annotations allowed. As a fraction of plotting area. (Default : `0.01`)
 #' @param arrow_spacing gene annotation arrow spacing. As a fraction of plotting area. (Default : `0.05`)
-#' @param geme_name_space the height of white space reserved for gene names in the annotaiton. (Default : `0.5`)
+#' @param geme_name_space the height of white space reserved for gene names in the annotation. (Default : `0.5`)
 #' @param col_pal gene color palette
 #' @param col_cn_baseline color for baseline (Default : `"#708C98"`)
 #' @param col_pal_cn color palette for non-baseline copy number states
@@ -331,9 +371,8 @@ plot_pileUp <-
 #' @param annot_plot_ratio ratio of the annotation plot under the pileup plot
 #'
 #' @return a list of pile-up ggplot object
-#' @import patchwork
 #' @export
-#'
+#' @importFrom patchwork plot_layout
 #' @examples
 #'
 #' # gff3 gene model file
@@ -378,22 +417,35 @@ plot_pileUp_multisample <- function(
         annot_margin = 0.01,
         arrow_spacing = 0.05,
         geme_name_space = 0.5,
-        col_pal = col_yarrr_info2  ,
+        col_pal = col_yarrr_info2,
         col_cn_baseline = "#708C98",
         col_pal_cn = col_yarrr_info2  [-5],
         exclude_genes = NULL,
         annot_plot_ratio = 0.3
 ){
 
-    if(length(baseline)==1){
-        baseline <- rep(baseline,NCOL(X_raw))
-    }
+    stopifnot_ELViS_result(result)
+    stopifnot_mtrx_or_df(X_raw)
+    stopifnot_character1(plot_target)
+    stopifnot_character1(gff3_fn)
+    stopifnot_baseline(baseline,n_samples = NCOL(X_raw))
+    stopifnot_numeric1(annot_margin)
+    stopifnot_numeric1(arrow_spacing)
+    stopifnot_numeric1(geme_name_space)
+    stopifnot_character_ge1(col_pal)
+    stopifnot_character1(col_cn_baseline)
+    stopifnot_character_ge1(col_pal_cn)
+    if(!is.null(exclude_genes)) stopifnot_character_ge1(exclude_genes)
+    stopifnot_numeric1(annot_plot_ratio)
+
+    baseline <- make_baseline_vec(baseline,L=NCOL(X_raw))
 
 
 
     if(is.null(target_indices)){
         target_indices <- result$final_call$cnv_samples
     }
+    stopifnot_numeric_ge1(target_indices)
 
     # plot data setting
     if(plot_target=="x"){
@@ -401,7 +453,7 @@ plot_pileUp_multisample <- function(
         mtrx_for_plotting <- X_raw
         cn_for_plotting <-
             result$final_output %>%
-            dplyr::transmute(
+            transmute(
                 sampleID=.data$sampleID,
                 seg=.data$seg,
                 begin=.data$begin,
@@ -417,7 +469,7 @@ plot_pileUp_multisample <- function(
         mtrx_for_plotting <- result$new_Y_p2
         cn_for_plotting <-
             result$final_output %>%
-            dplyr::transmute(
+            transmute(
                 sampleID=.data$sampleID,
                 seg=.data$seg,
                 begin=.data$begin,
@@ -431,10 +483,10 @@ plot_pileUp_multisample <- function(
     }else if(plot_target=="z"){
         matrix_type<-"Robust Z-score"
         mtrx_for_plotting <-
-            Z <- t(apply(result$new_Y_p2,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+            Z <- t(apply(result$new_Y_p2,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
         cn_for_plotting <-
             result$final_output %>%
-            dplyr::transmute(
+            transmute(
                 sampleID=.data$sampleID,
                 seg=.data$seg,
                 begin=.data$begin,
@@ -481,7 +533,7 @@ plot_pileUp_multisample <- function(
         lapply(\(sample_idx){
             x <- mtrx_for_plotting[,sample_idx]
             sample_ID <- colnames(X_raw)[sample_idx]
-            target_cn_table <- cn_for_plotting %>% dplyr::filter(.data$sampleID==sample_ID)
+            target_cn_table <- cn_for_plotting %>% filter(.data$sampleID==sample_ID)
 
 
             gg_line <-
@@ -540,9 +592,9 @@ plot_pileUp_multisample <- function(
 #' @return A ComplexHeatmap Heatmap List object vertically stacked
 #' @export
 #'
-#' @rawNamespace import(magrittr, except=c(subtract))
-#' @import ComplexHeatmap
-#' @import scales
+#' @importFrom magrittr set_names set_colnames set_rownames %>%
+#' @importFrom ComplexHeatmap Heatmap rowAnnotation HeatmapAnnotation %v% column_order
+#' @importFrom scales alpha trans_new log_breaks muted viridis_pal hue_pal
 #'
 #' @examples
 #'
@@ -603,6 +655,23 @@ integrative_heatmap <- function(
         return_data_matrices = FALSE
 ){
 
+    stopifnot_mtrx_or_df(X_raw)
+    stopifnot_ELViS_result(result)
+    stopifnot_character1(gff3_fn)
+    stopifnot_character_ge1(exclude_genes)
+    stopifnot_character_ge1(col_pal_gene)
+    stopifnot_ComplexHeatmap_col(col_cn)
+    stopifnot_ComplexHeatmap_col(col_y)
+    stopifnot_ComplexHeatmap_col(col_z)
+    stopifnot_ComplexHeatmap_col(col_x_scaled)
+    stopifnot_ComplexHeatmap_col(col_vl)
+    stopifnot_baseline(baseline,n_samples = NCOL(X_raw))
+    stopifnot_matrices_available(matrices_to_plot)
+    stopifnot_matrices_available(matrices_integ_cluster)
+    if(!is.null(total_aligned_base__host_and_virus)) stopifnot_numeric_ge1(total_aligned_base__host_and_virus)
+    stopifnot_logical1(return_data_matrices)
+
+
     rnt_gene_name <- get_gene_rnt(
         gff3_fn = gff3_fn,
         space_length = NROW(X_raw),
@@ -624,29 +693,27 @@ integrative_heatmap <- function(
 
 
     matrix_all_ori <- c("CN","Y","Z","X_Scaled","Viral_Load")
-    if(is.null(viral_load)){
+    if(is.null(total_aligned_base__host_and_virus)){
         matrix_all <- setdiff(matrix_all,"Viral_Load")
     }else{
         matrix_all <- matrix_all_ori
     }
 
 
-    if(length(baseline)==1){
-        baseline <- rep(baseline,NCOL(X_raw))
-    }
+    baseline <- make_baseline_vec(baseline,L=NCOL(X_raw))
     baseline_target <- baseline
 
     if(matrices_to_plot[1]=="all"){
         matrices_to_plot <- matrix_all
     }else{
-        matrices_to_plot <- base::intersect(matrices_to_plot,matrix_all)
+        matrices_to_plot <- intersect(matrices_to_plot,matrix_all)
     }
     matrices_to_plot_original <- matrices_to_plot
 
     if(matrices_integ_cluster[1]=="all"){
         matrices_integ_cluster <- matrix_all
     }else{
-        matrices_integ_cluster <- base::intersect(matrices_integ_cluster,matrix_all)
+        matrices_integ_cluster <- intersect(matrices_integ_cluster,matrix_all)
     }
 
     matrix_not_shown <- setdiff(matrices_integ_cluster,matrices_to_plot)
@@ -671,8 +738,8 @@ integrative_heatmap <- function(
 
             cntr <- MED
             col_x_scaled <-
-                scales::viridis_pal(option="turbo")(11) %>%
-                circlize::colorRamp2(
+                viridis_pal(option="turbo")(11) %>%
+                colorRamp2(
                     c(
                         (LQ_Smin-cntr)*((length(.)%/%2):1)/(length(.)%/%2),
                         0,
@@ -726,7 +793,7 @@ integrative_heatmap <- function(
 
     list_matrix <- list()
     list_ht <- list()
-    if(is.null(viral_load)){
+    if(is.null(total_aligned_base__host_and_virus)){
         # remove positional viral load plot if overall viral load was not given
         matrices_to_plot <- setdiff(matrices_to_plot,"Viral_Load")
         matrices_integ_cluster <- setdiff(matrices_integ_cluster,"Viral_Load")
@@ -756,11 +823,11 @@ integrative_heatmap <- function(
     list_matrix[[key]] <-
         result$final_output %>%
         group_by(.data$id) %>%
-        dplyr::mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
-        dplyr::transmute(cn=.data$cn,id=.data$id,begin=.data$begin,end=.data$end) %>%
+        mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
+        transmute(cn=.data$cn,id=.data$id,begin=.data$begin,end=.data$end) %>%
         apply(1,\(x) data.frame(pos=x[[3]]:x[[4]],sid=x[[2]],value=x[[1]])) %>% rbindlist %>%
         dcast(pos~sid,value.var = "value") %>%
-        dplyr::select(-pos)
+        select(-pos)
 
     list_ht[[key]] <-
         Heatmap(
@@ -791,7 +858,7 @@ integrative_heatmap <- function(
         )
 
     key <- "Z"
-    list_matrix[[key]] <- t(apply(result$new_Y_p2,1,function(x) pd.rate.hy(x,qrsc=TRUE)))
+    list_matrix[[key]] <- t(apply(result$new_Y_p2,1,function(x) pd_rate_hy(x,qrsc=TRUE)))
 
     list_ht[[key]] <-
         Heatmap(
@@ -871,7 +938,7 @@ integrative_heatmap <- function(
     }
 
     list_ht_reordered <- list_ht[matrices_to_plot]
-    htlst <- Reduce(ComplexHeatmap::`%v%`,list_ht_reordered)
+    htlst <- Reduce(`%v%`,list_ht_reordered)
 
     output <-
         list(
@@ -885,7 +952,7 @@ integrative_heatmap <- function(
         output <-
             list_matrix[names(list_matrix) != "Integrative"] %>%
             lapply(as.matrix) %>%
-            lapply(magrittr::set_colnames,colnames(X_raw))
+            lapply(set_colnames,colnames(X_raw))
     }
 
     return(
@@ -894,9 +961,53 @@ integrative_heatmap <- function(
 
 }
 
+parse_gff <- function(gff3_fn,exclude_genes){
+    txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
+    all_features <- transcriptsBy(txdb, by = "gene")
+    genes <- genes(txdb) %>% sort
+    cds <- cdsBy(txdb, by = "gene")
 
 
+    if(!is.null(exclude_genes)){
+        genes <- genes[!(genes$gene_id %in% exclude_genes)]
+        cds <- cds[!(names(cds) %in% exclude_genes)]
+    }
+    return(
+        list(
+            txdb = txdb,
+            all_features = all_features,
+            genes = genes,
+            cds = cds
+        )
+    )
+}
 
+
+#' @noRd
+make_col_pal_fin_gene <- function(col_pal_gene,Gene_levels){
+    # if color palette can cover all genes, use the scale
+    if(length(col_pal_gene)>=length(Gene_levels)){
+        #
+        if(is.null(names(col_pal_gene))||length(setdiff(Gene_levels,names(col_pal_gene)))!=0){ #pass if col palette designate all colors
+            col_pal_fin <- structure(
+                col_pal_gene[seq_len(length(Gene_levels))],
+                names = Gene_levels
+            )
+        }else{
+            col_pal_fin <- col_pal_gene
+        }
+    }else{
+        col_pal_fin <-
+            structure(
+                hue_pal()(length(Gene_levels))
+                ,names = Gene_levels
+            )
+    }
+
+    return(
+            col_pal_fin
+    )
+}
 
 
 #' Row annotation that shows positions of CDSs of genes.
@@ -915,33 +1026,14 @@ get_gene_rnt_ori <- function(
         col_pal_gene = col_yarrr_info2  ,
         ...
 ){
-
-    txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
-
-
-    genes <- genes(txdb) %>% sort
-    cds <- cdsBy(txdb, by = "gene")
-    if(!is.null(exclude_genes)){
-        cds <- cds[!(names(cds) %in% exclude_genes)]
-        genes <- genes[!(names(genes) %in% exclude_genes)]
-    }
+    gff_parsed <- parse_gff(gff3_fn,exclude_genes)
+    txdb <- gff_parsed$txdb
+    genes <- gff_parsed$gene
+    cds <- gff_parsed$cds
 
     Gene_levels <- unique(genes$gene_id)
 
-    is_custom_palette <- FALSE
-    # if color palette can cover all genes, use the scale
-    if(length(col_pal_gene)>=length(Gene_levels)){
-        is_custom_palette <- TRUE
-        #
-        if(is.null(names(col_pal_gene))||length(setdiff(Gene_levels,names(col_pal_gene)))!=0){ #pass if col pallete designate all colors
-            col_pal_fin <- structure(
-                col_pal_gene[seq_len(length(Gene_levels))],
-                names = Gene_levels
-            )
-        }else{
-            col_pal_fin <- col_pal_gene
-        }
-    }
+    col_pal_fin <- make_col_pal_fin_gene(col_pal_gene=col_pal_gene,Gene_levels=Gene_levels)
 
     cds_df <-
         cds[Gene_levels] %>%
@@ -957,7 +1049,7 @@ get_gene_rnt_ori <- function(
             as.character(seq_len(space_length) %in% target_indice)
         }) %>%
         as.data.frame() %>%
-        magrittr::set_colnames(Gene_levels)
+        set_colnames(Gene_levels)
 
     rnt <-
         rowAnnotation(
@@ -976,8 +1068,15 @@ get_gene_rnt_ori <- function(
 
 }
 
-get_gene_rnt <- memoise::memoise(get_gene_rnt_ori)
+get_gene_rnt <- memoise(get_gene_rnt_ori)
 
+
+make_baseline_vec <- function(baseline,L){
+    if(length(baseline)==1){
+        baseline <- rep(baseline,L)
+    }
+    return(baseline)
+}
 
 
 
@@ -1053,22 +1152,23 @@ gene_cn_heatmaps <-
         heatmap_height = unit(1.5,"in")
     ){
 
-        if(length(baseline)==1){
-            baseline <- rep(baseline,NCOL(X_raw))
-        }
+
+        stopifnot_mtrx_or_df(X_raw)
+        stopifnot_ELViS_result(result)
+        stopifnot_character1(gff3_fn)
+        stopifnot_character1(gene_ref)
+        stopifnot_character_ge1(exclude_genes)
+        stopifnot_ComplexHeatmap_col(col_cn)
+        stopifnot_unit1(heatmap_height)
+
+
+        baseline <- make_baseline_vec(baseline,L=NCOL(X_raw))
         baseline_target <- baseline
 
-
-        txdb <- makeTxDbFromGFF(gff3_fn, format = "gff3")
-
-
-        genes <- genes(txdb) %>% sort
-        cds <- cdsBy(txdb, by = "gene")
-
-        if(!is.null(exclude_genes)){
-            genes <- genes[!(genes$gene_id %in% exclude_genes)]
-            cds <- cds[!(names(cds) %in% exclude_genes)]
-        }
+        gff_parsed <- parse_gff(gff3_fn,exclude_genes)
+        txdb <- gff_parsed$txdb
+        genes <- gff_parsed$gene
+        cds <- gff_parsed$cds
 
         cds_ul <- unlist(cds,use.names = TRUE)
         mcols(cds_ul)$gene_id <-
@@ -1083,26 +1183,26 @@ gene_cn_heatmaps <-
 
         CN_info <-
             result$final_output %>%
-            dplyr::group_by(id) %>%
-            dplyr::mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
-            dplyr::ungroup() %>%
-            dplyr::group_split(id) %>%
+            group_by(id) %>%
+            mutate(cn = .data$cn-.data$cn[.data$state==unique(baseline_target[.data$id])][1]+1 ) %>%
+            ungroup() %>%
+            group_split(id) %>%
             lapply(\(df){
                 gr <-
                     df %>%
-                    dplyr::transmute(chr=chr,start=.data$begin,end=.data$end) %>%
+                    transmute(chr=chr,start=.data$begin,end=.data$end) %>%
                     makeGRangesFromDataFrame()
 
 
                 findOverlaps(cds_ul_sort,gr) %>%
                     as.data.frame() %>%
-                    dplyr::transmute(
+                    transmute(
                         gene_id = cds_ul_sort$gene_id[.data$queryHits] %>% factor(levels=genes_levels),
                         cn = df$cn[.data$subjectHits]
                     ) %>%
-                    dplyr::group_by(.data$gene_id) %>%
-                    dplyr::summarise(Min_CN=min(.data$cn),Max_CN=max(.data$cn)) %>%
-                    dplyr::mutate(id=df$id[1])
+                    group_by(.data$gene_id) %>%
+                    summarise(Min_CN=min(.data$cn),Max_CN=max(.data$cn)) %>%
+                    mutate(id=df$id[1])
             }) %>%
             rbindlist
 
@@ -1111,9 +1211,9 @@ gene_cn_heatmaps <-
             CN_info %>%
             dcast(gene_id~id,value.var="Min_CN") %>%
             as.data.frame %>%
-            magrittr::set_rownames(.$gene_id) %>%
-            dplyr::select(-matches("^gene_id$")) %>%
-            magrittr::set_colnames(colnames(X_raw)) %>%
+            set_rownames(.$gene_id) %>%
+            select(-matches("^gene_id$")) %>%
+            set_colnames(colnames(X_raw)) %>%
             as.matrix
 
         relCN_mtrx <-

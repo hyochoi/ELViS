@@ -10,7 +10,7 @@
 A list of
 \describe{
 \item{is_reduced_output}{Indicates whether this results is a reduced form}
-\item{final_output}{FInal base-resolution segmentation output}
+\item{final_output}{Final base-resolution segmentation output}
 \item{final_call}{Indices of samples in which copy number variants were detected}
 \item{new_Y_p2}{Normalized read depth}
 }
