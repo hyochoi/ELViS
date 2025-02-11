@@ -1,3 +1,8 @@
+# ELViS 0.99.5
+
+* Fixes according to initial main review from Bioconductor at https://github.com/Bioconductor/Contributions/issues/3631#issuecomment-2548723782
+  - previous version had issue in updating
+
 # ELViS 0.99.4
 
 * Fixes according to initial main review from Bioconductor at https://github.com/Bioconductor/Contributions/issues/3631#issuecomment-2548723782
