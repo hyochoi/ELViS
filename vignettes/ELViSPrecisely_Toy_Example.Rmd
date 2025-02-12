@@ -44,13 +44,25 @@ ELViS (Estimating Copy Number Levels of Viral Genomic Segments) is an R package 
 
 
 ------------------------------------------------------------------------
+# 3. Installation
 
-# 2. Run Example
+To install this package, start R (version "4.5") and enter:
 
-## 2.1 Data preparation
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ELViS")
+```
 
 
-#### 2.1.1 Virus Reference Genome File
+
+# 3. Run Example
+
+## 3.1 Data preparation
+
+
+#### 3.1.1 Virus Reference Genome File
 
 The following reference files are included in extdata directory of ELViS.
 
@@ -84,7 +96,7 @@ samtools faidx hg38_with_virus.fa
 ```
 
 
-#### 2.1.2 BAM Files
+#### 3.1.2 BAM Files
 \label{section-2-2-1}
 The following BAM files are included in extdata directory of ELViS.
 
@@ -117,7 +129,7 @@ Align `seq_r1.fastq` and `seq_r2.fastq` to merged reference of viral genomes usi
 
 
 
-## 2.2 Generate Raw Read Depth Matrix with Toy Examples
+## 3.2 Generate Raw Read Depth Matrix with Toy Examples
 
 Load required libraries.
 
@@ -250,7 +262,7 @@ use_data(mtrx_samtools_reticulate)
 
 
 
-## 2.3 Filtering Out Low Depth Samples
+## 3.3 Filtering Out Low Depth Samples
 
 Determine sample filtering threshold using histogram and filter out low depth samples
 
@@ -273,7 +285,7 @@ print(base_resol_depth[1:4,1:4])
 
 
 
-## 2.4 Run ELViS using the Filtered Depth Matrix
+## 3.4 Run ELViS using the Filtered Depth Matrix
 
 Running ELViS using the filtered read depth matrix(`base_resol_depth`).
 
@@ -293,7 +305,7 @@ use_data(ELViS_toy_run_result)
 # 4min for 120 samples using 10 threads
 ```
 
-## 2.5 Plotting Figures
+## 3.5 Plotting Figures
 
 Prepare plotting data
 
@@ -457,9 +469,7 @@ integ_ht_result = integrative_heatmap(
     result = result,
     gff3_fn = gff3_fn,
     exclude_genes = exclude_genes,
-    # baseline = new_baseline,
     baseline=1,
-    # col_z = col_z,
     total_aligned_base__host_and_virus = total_aligned_base__host_and_virus
 )
 
@@ -484,7 +494,6 @@ gene_cn =
         result = result,
         gff3_fn = gff3_fn,
         baseline = new_baseline,
-        # baseline = 1,
         gene_ref = gene_ref,
         exclude_genes = exclude_genes
     )
@@ -496,16 +505,12 @@ Generate final heatmap in a single panel.
 
 ```{r,fig.width=7,fig.height=8}
 draw(top_ant %v% integ_ht_result$Heatmap %v% gene_cn$Heatmaps$intact_gene_cn %v% gene_cn$Heatmaps$rel_dosage)
-# minCN_mtrx %>%
-#   dplyr::select(contains("6258"))
-
-# integ_ht_result$Heatmap[,1:3]
 ```
 
 
 ------------------------------------------------------------------------
 
-# 3. sessionInfo
+# 4. sessionInfo
 
 ```{r}
 sessionInfo()
