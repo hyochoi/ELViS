@@ -1,3 +1,7 @@
+# ELViS 0.99.8
+* Added an installation instruction to the vignette
+
+
 # ELViS 0.99.7
 * R version dependency update : R (>= 4.5.0)
 
