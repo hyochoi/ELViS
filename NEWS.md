@@ -1,3 +1,6 @@
+# ELViS 0.99.9
+* Installation chunk eval=FALSE
+
 # ELViS 0.99.8
 * Added an installation instruction to the vignette
 
