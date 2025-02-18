@@ -2,7 +2,8 @@
 #'
 #' @param bam_files Vector containing bam file names in character
 #' @param mode Mode of read depth calculation. Either of `c("samtools_basilisk","samtools_custom","Rsamtools")` are acceptable. If run on Windows OS, it will coerced to `"Rsamtools"` (Default : `"samtools_basilisk"`)
-#' @param target_virus_name The name of the target virus. This should be equal to the name of the sequence in the FASTA file reads are aligned to
+#' @param coord_or_target_virus_name The name of the target virus. This should be equal to the name of the sequence in the FASTA file reads are aligned to.
+#' @param is_virus logical indicating if the coord_or_target_virus_name is for viral genome(TRUE) or non-viral genome(FALSE) (default : TRUE)
 #' @param N_cores Number of cores to use for parallel processing (Default : min(10,available cores))
 #' @param min_mapq Minimum MAPQ. (Default : 30)
 #' @param min_base_quality Minimum basecall quality score (Default : 0)
@@ -16,9 +17,9 @@
 #'
 #'
 #' @return a matrix of positions x samples containing base-resolution raw read depth
-#' @import parallel
+#' @importFrom  parallel mclapply    detectCores
 #' @rawNamespace import(data.table, except=c(between,first,last,shift,yearmon,yearqtr))
-#' @import basilisk
+#' @importFrom basilisk BasiliskEnvironment obtainEnvironmentPath
 #' @export
 #'
 #' @examples
@@ -42,7 +43,7 @@
 #'
 #' mtrx_samtools_basilisk <-
 #'  get_depth_matrix(
-#'   bam_files = bam_files,target_virus_name = target_virus_name
+#'   bam_files = bam_files,coord_or_target_virus_name = target_virus_name,is_virus = TRUE
 #'  ,mode = "samtools_basilisk"
 #'  ,N_cores = N_cores
 #'  ,min_mapq = 30
@@ -54,7 +55,8 @@
 get_depth_matrix <-
     function(
         bam_files,mode="samtools_basilisk"
-        ,target_virus_name
+        ,coord_or_target_virus_name
+        ,is_virus = TRUE
         #common options
         ,N_cores = detectCores()
         ,min_mapq=30
@@ -71,68 +73,39 @@ get_depth_matrix <-
         ,condaenv_samtools_version = "1.21"
     ){
 
+        stopifnot_character_ge1(bam_files)
+        stopifnot_character1(mode)
+        stopifnot_character1(coord_or_target_virus_name)
+        stopifnot_logical1(is_virus)
+        stopifnot_numeric1(N_cores)
+        stopifnot_numeric1(min_mapq)
+        stopifnot_numeric1(min_base_quality)
+        stopifnot_numeric1(max_depth)
+        if(!is.null(modules)) stopifnot_character_ge1(modules)
+        if(!is.null(envs)) stopifnot_character_ge1(envs)
+        stopifnot_character1(tmpdir)
+        if(!is.null(samtools)) stopifnot_character1(samtools)
+        stopifnot_character1(condaenv)
+        stopifnot_character1(condaenv_samtools_version)
+
+
+
         # custom samtools not available for windows
-        os_name <- Sys.info()["sysname"]
-        if( os_name == "Windows" ){
-            if(mode != "Rsamtools"){
-                warning(glue("mode={mode} is not supported for {os_name}. Changing mode to Rsamtools..."))
-                mode <- "Rsamtools"
-            }
-        }
-
-        if( !(mode %in% c("samtools_basilisk","samtools_custom","Rsamtools")) ){
-            stop(glue("mode='{mode}' is not an allowed argument. Available arguments are 'samtools_basilisk','samtools_custom', and 'Rsamtools'"))
-        }
-
+        mode <- check_mode_os(mode)
 
         if(mode == "samtools_basilisk"){
-
-            # check if basilisk is installed and install if not
-            if (!requireNamespace("basilisk", quietly = TRUE)) {
-                stop("R Package 'basilisk' does not exist. Please install it by following instructions in 'https://www.bioconductor.org/packages/release/bioc/html/basilisk.html'")
-            }
-
-            # samtools version sanity check
-            if(grepl("[^0-9.]",condaenv_samtools_version)){
-                stop("Invalid samtools version number. Please find correct version number refering to 'https://anaconda.org/bioconda/samtools'.")
-            }
-
-
-            # Load samtools conda environment
-            samtools_env <- BasiliskEnvironment(
-                envname=condaenv
-                ,pkgname="ELViS"
-                ,channels = c("conda-forge","bioconda")
-                ,packages=c(glue("samtools=={condaenv_samtools_version}"))
-            )
-
-            env_dir <- obtainEnvironmentPath(samtools_env)
-
-            envs <- c(
-                PATH = paste(env_dir,"bin",sep="/"),
-                LD_LIBRARY_PATH = paste(env_dir,"lib",sep="/")
-            )
-
+            envs <- get_envs_samtools_basilisk(condaenv_samtools_version,condaenv)
         }
 
         if(mode == "Rsamtools"){
 
             # check if Rsamtools is installed and install if not
-            if (!requireNamespace("Rsamtools", quietly = TRUE)) {
-                stop("R Package 'Rsamtools' does not exist. Please install it by executing following command.
-
-if (!requireNamespace('BiocManager', quietly = TRUE))
-    utils::install.packages('BiocManager')
-
-BiocManager::install('Rsamtools')")
-            }
-            # require("Rsamtools")
-
+            check_Rsamtools_installation()
 
             out_mtrx <-
                 get_depth_matrix_Rsamtools(
                     bam_files = bam_files,
-                    target_virus_name = target_virus_name,N_cores = N_cores,max_depth = max_depth,min_mapq=min_mapq
+                    coord_or_target_virus_name = coord_or_target_virus_name,is_virus = is_virus,N_cores = N_cores,max_depth = max_depth,min_mapq=min_mapq
                     ,min_base_quality=min_base_quality
                 )
         }else if(mode %in% c("samtools_custom","samtools_basilisk")){
@@ -140,7 +113,8 @@ BiocManager::install('Rsamtools')")
             out_mtrx <-
                 get_depth_matrix_samtools(
                     bam_files=bam_files
-                    ,target_virus_name=target_virus_name
+                    ,coord_or_target_virus_name=coord_or_target_virus_name
+                    ,is_virus = is_virus
                     #common options
                     ,N_cores = N_cores,min_mapq=min_mapq,min_base_quality=min_base_quality
                     #samtools specific options
@@ -157,8 +131,6 @@ BiocManager::install('Rsamtools')")
             stop(out_mtrx[1,1])
         }
 
-
-
         return(out_mtrx)
     }
 
@@ -167,50 +139,34 @@ BiocManager::install('Rsamtools')")
 get_depth_matrix_Rsamtools <-
     function(
         bam_files,
-        target_virus_name,N_cores = detectCores(),max_depth = 1e5,min_mapq=30,
+        coord_or_target_virus_name,is_virus,N_cores = detectCores(),max_depth = 1e5,min_mapq=30,
         min_base_quality=0
     ){
 
-        # viral genome size
-        bam <- Rsamtools::BamFile(bam_files[1])
-        bam_header <- Rsamtools::scanBamHeader(bam)
-        virus_genome_size <- bam_header$targets[[target_virus_name]]
+        if(is_virus){
+            # viral genome size
+            bam <- Rsamtools::BamFile(bam_files[1])
+            bam_header <- Rsamtools::scanBamHeader(bam)
+            virus_genome_size <- bam_header$targets[[coord_or_target_virus_name]]
 
-        target_grng <-
-            data.frame(chr=target_virus_name,start=1,end=virus_genome_size) %>%
-            makeGRangesFromDataFrame()
-        paramScanBam <- Rsamtools::ScanBamParam(which=target_grng)
+            chr <- coord_or_target_virus_name;start <- 1;end <- virus_genome_size
+        }else{
+            coord_lst <- coord_to_lst(coord_or_target_virus_name)
 
-        paramPileup <-
-            Rsamtools::PileupParam(
-                min_base_quality=min_base_quality,
-                max_depth=max_depth,
-                min_mapq=min_mapq,
-                min_nucleotide_depth=0,
-                distinguish_strands=FALSE,
-                distinguish_nucleotides=FALSE,
-                ignore_query_Ns=FALSE,
-                include_deletions=FALSE,
-                include_insertions=FALSE,
-                left_bins=NULL,
-                query_bins=NULL,
-                cycle_bins=NULL
-            )
-
-
-
+            chr <- coord_lst$chr;start <- coord_lst$start;end <- coord_lst$end
+        }
 
 
         depth_mtrx <-
-            mclapply(   X = bam_files,
-                        mc.cores = N_cores,
-                        FUN = get_depth_Rsamtools,
-                        scanBamParam=paramScanBam,pileupParam = paramPileup) %>%
-            do.call(cbind, .)
+            get_depth_matrix_Rsamtools_core(
+                bam_files,
+                N_cores=N_cores,max_depth=max_depth,min_mapq=min_mapq,
+                min_base_quality=min_base_quality,
+                chr=chr,start=start,end=end
+            )
+
         return(depth_mtrx)
     }
-
-
 
 #' @noRd
 get_depth_Rsamtools <-
@@ -328,7 +284,7 @@ detect_unquoted_pipe <- function(s) {
 get_bash_script_base <- function(modules=NULL,envs=NULL,debug_mode=FALSE){
 
     all_strings <- c(modules,envs,names(envs))
-    for(s in all_strings){  sanity_check(s)  }
+    all_strings %>% lapply(sanity_check)
 
 
     if(debug_mode){
@@ -441,7 +397,8 @@ run_samtools <- function(
 get_depth_matrix_samtools <-
     function(
         bam_files
-        ,target_virus_name
+        ,coord_or_target_virus_name
+        ,is_virus
         #common options
         ,N_cores = min(10,detectCores()),min_mapq=30,min_base_quality=0
         #samtools specific options
@@ -458,7 +415,8 @@ get_depth_matrix_samtools <-
                         X = seq_along(bam_files)
                         ,FUN = get_depth_samtools
                         ,bam_files = bam_files
-                        ,target_virus_name=target_virus_name
+                        ,coord_or_target_virus_name = coord_or_target_virus_name
+                        ,is_virus = is_virus
                         ,min_mapq=min_mapq
                         ,min_base_quality=min_base_quality
                         ,tmpdir=tmpdir
@@ -472,13 +430,14 @@ get_depth_matrix_samtools <-
 
 
 
-#' @import uuid
+#' @importFrom uuid UUIDgenerate
 #' @noRd
 get_depth_samtools <-
     function(
         vec_i
         ,bam_files
-        ,target_virus_name
+        ,coord_or_target_virus_name
+        ,is_virus
         ,min_mapq=30
         ,min_base_quality=0
         ,tmpdir=tempdir()
@@ -490,10 +449,17 @@ get_depth_samtools <-
 
         depth_bed_fn <- glue("{tmpdir}/{UUIDgenerate()}_{vec_i}.depth.bed")
 
+        if(is_virus){
+            region <- coord_or_target_virus_name
+        }else{
+            coord_lst <- coord_to_lst(coord_or_target_virus_name)
+            region <- glue("{coord_lst$chr}:{coord_lst$start}-{coord_lst$end}")
+        }
+
 
         run_samtools(
             bash_script_base = bash_script_base,
-            command = glue("depth -a -r '{target_virus_name}' --min-MQ {min_mapq} --min-BQ {min_base_quality} -g 256 {bam_fn}"),
+            command = glue("depth -a -r '{region}' --min-MQ {min_mapq} --min-BQ {min_base_quality} -g 256 {bam_fn}"),
             output_name = depth_bed_fn,
             samtools = samtools,
             depth_count_only = TRUE
@@ -506,149 +472,75 @@ get_depth_samtools <-
         return(depth_bed)
     }
 
+check_mode_os <- function(mode){
+    os_name <- Sys.info()["sysname"]
 
-
-
-#' Generate a read depth matrix of positions x samples from input BAM files list
-#'
-#' @param bam_files Vector containing bam file names in character
-#' @param mode Mode of read depth calculation. Either of `c("samtools_basilisk","samtools_custom","Rsamtools")` are acceptable. If run on Windows OS, it will coerced to `"Rsamtools"` (Default : `"samtools_basilisk"`)
-#' @param coord Target region coordinate. This should be a string in the form of "chr1:123-456" or "chr1:1,234-5,678,912"
-#' @param N_cores Number of cores to use for parallel processing (Default : min(10,available cores))
-#' @param min_mapq Minimum MAPQ. (Default : 30)
-#' @param min_base_quality Minimum basecall quality score (Default : 0)
-#' @param max_depth (Rsamtools) Maximum read depth. (Default : 1e5)
-#' @param modules (samtools) Environment modulefile name. (Default : NULL)
-#' @param envs (samtools) Environmental variables for samtools. (Default : NULL)
-#' @param tmpdir (samtools) Temporary file directory (Default : `tempdir()`)
-#' @param samtools (samtools) Absolute path to samtools executable (Default : NULL)
-#' @param condaenv (samtools_basilisk) Name of the conda environment in which samtools are installed. If no environment with this name is available, one will be created. (Default : `"env_samtools"`)
-#' @param condaenv_samtools_version (samtools_basilisk) The version of samtools to install in the conda environment using basilisk (Default : "1.21")
-#'
-#' @return a matrix of positions x samples containing base-resolution raw read depth
-#' @import parallel
-#' @noRd
-get_depth_matrix_gp <-
-    function(
-        bam_files,mode="samtools_custom"
-        ,coord
-        #common options
-        ,N_cores = detectCores(),min_mapq=30,min_base_quality=0
-        #Rsamtools specific options
-        ,max_depth = 1e5
-        #samtools specific options - custom and basilisk
-        ,modules=NULL,envs=NULL
-        ,tmpdir=tempdir()
-        ,samtools=NULL # absolute path to samtools
-        #basilisk specific options
-        ,condaenv = "env_samtools"
-        ,condaenv_samtools_version = "1.21"
-    ){
-        os_name <- Sys.info()["sysname"]
-        if( os_name == "Windows" ){
-            if(mode != "Rsamtools"){
-                warning(glue("mode={mode} is not supported for {os_name}. Changing mode to Rsamtools..."))
-                mode <- "Rsamtools"
-            }
+    if( os_name == "Windows" ){
+        if(mode != "Rsamtools"){
+            warning(glue("mode={mode} is not supported for {os_name}. Changing mode to Rsamtools..."))
+            mode <- "Rsamtools"
         }
+    }
 
-        if(mode == "samtools_basilisk"){
+    if( !(mode %in% c("samtools_basilisk","samtools_custom","Rsamtools")) ){
+        stop(glue("mode='{mode}' is not an allowed argument. Available arguments are 'samtools_basilisk','samtools_custom', and 'Rsamtools'"))
+    }
+    return(mode)
+}
 
-            # check if basilisk is installed and install if not
-            if (!requireNamespace("basilisk", quietly = TRUE)) {
-                stop("R Package 'basilisk' does not exist. Please install it by following instructions in 'https://www.bioconductor.org/packages/release/bioc/html/basilisk.html'")
-            }
+get_envs_samtools_basilisk <- function(condaenv_samtools_version,condaenv){
+    # check if basilisk is installed and install if not
+    if (!requireNamespace("basilisk", quietly = TRUE)) {
+        stop("R Package 'basilisk' does not exist. Please install it by following instructions in 'https://www.bioconductor.org/packages/release/bioc/html/basilisk.html'")
+    }
 
-            # samtools version sanity check
-            if(grepl("[^0-9.]",condaenv_samtools_version)){
-                stop("Invalid samtools version number. Please find correct version number refering to 'https://anaconda.org/bioconda/samtools'.")
-            }
+    # samtools version sanity check
+    if(grepl("[^0-9.]",condaenv_samtools_version)){
+        stop("Invalid samtools version number. Please find correct version number refering to 'https://anaconda.org/bioconda/samtools'.")
+    }
 
 
-            # Load samtools conda environment
-            samtools_env <- BasiliskEnvironment(
-                envname=condaenv
-                ,pkgname="ELViS"
-                ,channels = c("conda-forge","bioconda")
-                ,packages=c(glue("samtools=={condaenv_samtools_version}"))
-            )
+    # Load samtools conda environment
+    samtools_env <- BasiliskEnvironment(
+        envname=condaenv
+        ,pkgname="ELViS"
+        ,channels = c("conda-forge","bioconda")
+        ,packages=c(glue("samtools=={condaenv_samtools_version}"))
+    )
 
-            env_dir <- obtainEnvironmentPath(samtools_env)
+    env_dir <- obtainEnvironmentPath(samtools_env)
 
-            envs <- c(
-                PATH = paste(env_dir,"bin",sep="/"),
-                LD_LIBRARY_PATH = paste(env_dir,"lib",sep="/")
-            )
+    envs <- c(
+        PATH = file.path(env_dir,"bin"),
+        LD_LIBRARY_PATH = file.path(env_dir,"lib")
+    )
 
-        }
+    return(envs)
+}
 
-        if(mode == "Rsamtools"){
-
-            # check if Rsamtools is installed and install if not
-            if (!requireNamespace("Rsamtools", quietly = TRUE)) {
-                stop("R Package 'Rsamtools' does not exist. Please install it by executing following command.
+check_Rsamtools_installation <- function(){
+    if (!requireNamespace("Rsamtools", quietly = TRUE)) {
+        stop("R Package 'Rsamtools' does not exist. Please install it by executing following command.
 
 if (!requireNamespace('BiocManager', quietly = TRUE))
     utils::install.packages('BiocManager')
 
 BiocManager::install('Rsamtools')")
-            }
-
-            out_mtrx <-
-                get_depth_matrix_Rsamtools_gp(
-                    bam_files = bam_files,
-                    coord = coord,N_cores = N_cores,max_depth = max_depth,min_mapq=min_mapq
-                    ,min_base_quality=min_base_quality
-                )
-        }else if(mode %in% c("samtools_custom","samtools_basilisk")){
-            if(!dir.exists(tmpdir)){ dir.create(tmpdir) }
-            out_mtrx <-
-                get_depth_matrix_samtools_gp(
-                    bam_files=bam_files
-                    ,coord=coord
-                    #common options
-                    ,N_cores = N_cores,min_mapq=min_mapq,min_base_quality=min_base_quality
-                    #samtools specific options
-                    ,modules=modules,envs=envs
-                    ,tmpdir=tmpdir
-                    ,samtools=samtools
-                )
-        }
-
-        colnames(out_mtrx) <- basename(bam_files)
-        if(
-            grepl("Error",out_mtrx[1,1],ignore.case = TRUE)
-        ){
-            stop(out_mtrx[1,1])
-        }
-        return(out_mtrx)
     }
+}
 
 
 
-
-
-
-#' @noRd
-get_depth_matrix_Rsamtools_gp <-
+get_depth_matrix_Rsamtools_core <-
     function(
         bam_files,
-        coord,N_cores = detectCores(),max_depth = 1e5,min_mapq=30,
-        min_base_quality=0
+        N_cores = detectCores(),max_depth = 1e5,min_mapq=30,
+        min_base_quality=0,
+        chr,start,end
     ){
 
-
-        coord_lst <-
-            coord %>%
-            str_replace_all(",","") %>%
-            str_split(":|-",simplify = TRUE) %>%
-            as.list() %>%
-            structure(names=c("chr","start","end")) %>%
-            within({start <- as.numeric(start);end <- as.numeric(end)})
-
-
         target_grng <-
-            data.frame(chr=coord_lst$chr,start=coord_lst$start,end=coord_lst$end) %>%
+            data.frame(chr=chr,start=start,end=end) %>%
             makeGRangesFromDataFrame()
         paramScanBam <- Rsamtools::ScanBamParam(which=target_grng)
 
@@ -685,43 +577,6 @@ get_depth_matrix_Rsamtools_gp <-
 
 
 
-
-#' @noRd
-get_depth_matrix_samtools_gp <-
-    function(
-        bam_files
-        ,coord
-        #common options
-        ,N_cores = detectCores(),min_mapq=30,min_base_quality=0
-        #samtools specific options
-        ,modules=NULL,envs=NULL
-        ,tmpdir=tempdir()
-        ,samtools=NULL
-    ){
-
-        bash_script_base <-
-            get_bash_script_base(modules=modules,envs=envs)
-
-
-        depth_mtrx <-
-            mclapply(   X = seq_along(bam_files)
-                        ,mc.cores = N_cores
-                        ,FUN = get_depth_samtools_gp
-                        ,bam_files = bam_files
-                        ,coord=coord
-                        ,min_mapq=min_mapq
-                        ,min_base_quality=min_base_quality
-                        ,tmpdir=tmpdir
-                        ,bash_script_base=bash_script_base
-                        ,samtools=samtools
-            ) %>%
-            do.call(cbind, .)
-        return(depth_mtrx)
-    }
-
-
-
-
 #' Convert coordinate string to list of chr,start and end
 #'
 #' @param coord string in the form of "chr1:123-456" or "chr1:1,234-5,678,912"
@@ -734,6 +589,7 @@ get_depth_matrix_samtools_gp <-
 #' coord_to_lst("chr1:1,234-5,678,912")
 #'
 coord_to_lst <- function(coord){
+    stopifnot_coordinate1(coord)
     coord_lst <-
         coord %>%
         str_replace_all(",","") %>%
@@ -757,6 +613,7 @@ coord_to_lst <- function(coord){
 #' coord_to_grng("chr1:1,234-5,678,912")
 #'
 coord_to_grng <- function(coord){
+    stopifnot_coordinate1(coord)
     coord_lst <- coord_to_lst(coord)
 
     grng <-
@@ -767,46 +624,3 @@ coord_to_grng <- function(coord){
 }
 
 
-
-#' @import uuid
-#' @noRd
-get_depth_samtools_gp <-
-    function(
-        vec_i
-        ,bam_files
-        ,coord
-        ,min_mapq=30
-        ,min_base_quality=0
-        ,tmpdir=tempdir()
-        ,bash_script_base
-        ,samtools=NULL
-    ){
-
-        coord_lst <-
-            coord %>%
-            str_replace_all(",","") %>%
-            str_split(":|-",simplify = TRUE) %>%
-            as.list() %>%
-            structure(names=c("chr","start","end")) %>%
-            within({start <- as.numeric(start);end <- as.numeric(end)})
-
-
-        bam_fn <- bam_files[vec_i]
-
-        depth_bed_fn <- glue("{tmpdir}/{UUIDgenerate()}_{vec_i}.depth.bed")
-
-
-        run_samtools(
-            bash_script_base,
-            command <- glue("depth -a -r '{coord_lst$chr}:{coord_lst$start}-{coord_lst$end}' --min-MQ {min_mapq} --min-BQ {min_base_quality} -g 256 {bam_fn}"),
-            output_name <- depth_bed_fn,
-            samtools <- samtools,
-            depth_count_only <- TRUE
-        )
-
-        depth_bed <- unlist(read.csv(depth_bed_fn,sep = "\t",header=FALSE),use.names = FALSE)
-        sanity_check(depth_bed_fn)
-        system2(command = "rm",args = depth_bed_fn)
-
-        return(depth_bed)
-    }

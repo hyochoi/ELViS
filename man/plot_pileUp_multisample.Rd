@@ -38,7 +38,7 @@ plot_pileUp_multisample(
 
 \item{arrow_spacing}{gene annotation arrow spacing. As a fraction of plotting area. (Default : \code{0.05})}
 
-\item{geme_name_space}{the height of white space reserved for gene names in the annotaiton. (Default : \code{0.5})}
+\item{geme_name_space}{the height of white space reserved for gene names in the annotation. (Default : \code{0.5})}
 
 \item{col_pal}{gene color palette}
 

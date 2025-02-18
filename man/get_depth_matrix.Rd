@@ -7,7 +7,8 @@
 get_depth_matrix(
   bam_files,
   mode = "samtools_basilisk",
-  target_virus_name,
+  coord_or_target_virus_name,
+  is_virus = TRUE,
   N_cores = detectCores(),
   min_mapq = 30,
   min_base_quality = 0,
@@ -25,7 +26,9 @@ get_depth_matrix(
 
 \item{mode}{Mode of read depth calculation. Either of \code{c("samtools_basilisk","samtools_custom","Rsamtools")} are acceptable. If run on Windows OS, it will coerced to \code{"Rsamtools"} (Default : \code{"samtools_basilisk"})}
 
-\item{target_virus_name}{The name of the target virus. This should be equal to the name of the sequence in the FASTA file reads are aligned to}
+\item{coord_or_target_virus_name}{The name of the target virus. This should be equal to the name of the sequence in the FASTA file reads are aligned to.}
+
+\item{is_virus}{logical indicating if the coord_or_target_virus_name is for viral genome(TRUE) or non-viral genome(FALSE) (default : TRUE)}
 
 \item{N_cores}{Number of cores to use for parallel processing (Default : min(10,available cores))}
 
@@ -74,7 +77,7 @@ tmpdir <- tempdir()
 
 mtrx_samtools_basilisk <-
  get_depth_matrix(
-  bam_files = bam_files,target_virus_name = target_virus_name
+  bam_files = bam_files,coord_or_target_virus_name = target_virus_name,is_virus = TRUE
  ,mode = "samtools_basilisk"
  ,N_cores = N_cores
  ,min_mapq = 30

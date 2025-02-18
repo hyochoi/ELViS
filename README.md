@@ -31,35 +31,13 @@ An R Package for ***E***stimating Copy Number ***L***evels of ***Vi***ral Genome
 
 ## INSTALLATION
 
-```
-# Install BiocManager if not already
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
+To install this package, start R (version "4.5") and enter:
+
+```{r , echo=TRUE, eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-}
 
-# Install devtools if not already
-if (!requireNamespace("devtools", quietly = TRUE)) {
-    install.packages("devtools")
-}
-
-# install release version
-## Ensure repos includes both CRAN and Bioconductor repositories
-if( BiocManager::version() >= "3.19" ){
-   BiocManager::install("ELViS")
-}else{
-   options(repos = BiocManager::repositories())
-   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="master_bioc_le_3.18")
-}
-
-# install development version
-## Ensure repos includes both CRAN and Bioconductor repositories
-options(repos = BiocManager::repositories())
-if( BiocManager::version() >= "3.19" ){
-   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="devel")
-}else{
-   devtools::install_github("https://github.com/hyochoi/ELViS.git",ref="devel_bioc_le_3.18")
-}
-
+BiocManager::install("ELViS")
 ```
 
 

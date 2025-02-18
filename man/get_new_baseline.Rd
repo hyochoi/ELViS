@@ -9,7 +9,7 @@ get_new_baseline(result, mode = "longest")
 \arguments{
 \item{result}{Run result}
 
-\item{mode}{Indecate how new baseline should be set ("longest","shortest")}
+\item{mode}{Indicate how new baseline should be set ("longest","shortest")}
 }
 \value{
 a integer vector indicating new baseline index for each sample
