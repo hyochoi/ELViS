@@ -1,3 +1,6 @@
+# ELViS 0.99.10
+* Vignette "installation" section typo correction
+
 # ELViS 0.99.9
 * Installation chunk eval=FALSE
 

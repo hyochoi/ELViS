@@ -44,7 +44,7 @@ ELViS (Estimating Copy Number Levels of Viral Genomic Segments) is an R package 
 
 
 ------------------------------------------------------------------------
-# 3. Installation
+# 2. Installation
 
 To install this package, start R (version "4.5") and enter:
 
