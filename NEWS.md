@@ -1,3 +1,6 @@
+# ELViS 0.99.11
+* Test fix
+
 # ELViS 0.99.10
 * Vignette "installation" section typo correction
 

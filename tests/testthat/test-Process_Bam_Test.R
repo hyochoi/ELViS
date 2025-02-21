@@ -9,8 +9,12 @@ N_cores <- 1L
 # get read depth matrix
 tmpdir <- tempdir()
 
+os_name <- Sys.info()["sysname"]
+
+
 
 #### Function to be tested ####
+if( os_name != "Windows" ){
 mtrx_samtools_basilisk <-
     get_depth_matrix(
         bam_files = bam_files,coord_or_target_virus_name = coord_or_target_virus_name,is_virus = is_virus
@@ -20,6 +24,7 @@ mtrx_samtools_basilisk <-
         ,tmpdir=tempdir()
         ,condaenv = "env_samtools"
     )
+}
 
 max_depth <-  1e5
 min_mapq <- 30
@@ -85,6 +90,8 @@ mtrx_Rsatools_core <-
 depth_Rsatools <- get_depth_Rsamtools(bam_files[1],paramScanBam,paramPileup)
 
 
+if( os_name != "Windows" ){
+
 condaenv <- "env_samtools"
 condaenv_samtools_version <- "1.21"
 modules = NULL
@@ -139,7 +146,7 @@ mtrx_satools <-
         ,samtools=samtools
     )
 
-
+}
 
 #### True values ####
 {
@@ -154,6 +161,7 @@ true_mtrx_dimnames <-
         ,dimnames = list(NULL, c("Control_100X_1102.bam","Control_100X_1119.bam"))
     )
 
+if( os_name != "Windows" ){
 
 samtools_env <- BasiliskEnvironment(
     envname=condaenv
@@ -169,25 +177,15 @@ true_env <- c(
     LD_LIBRARY_PATH = file.path(env_dir,"lib")
 )
 
+}
 
+}
 
-test_that("Bam Processing", {
-
-    # get_depth_matrix
-    testthat::expect_equal(
-        mtrx_samtools_basilisk[1:5,1:2],
-        true_mtrx_dimnames
-    )
+test_that("Bam Processing_Common", {
 
     # get_depth_matrix_Rsamtools
     testthat::expect_equal(
         mtrx_Rsatools[1:5,1:2],
-        true_mtrx
-    )
-
-    # get_depth_matrix_samtools
-    testthat::expect_equal(
-        mtrx_satools[1:5,1:2],
         true_mtrx
     )
 
@@ -201,6 +199,25 @@ test_that("Bam Processing", {
     testthat::expect_equal(
         depth_Rsatools[1:5],
         true_depth
+    )
+
+})
+
+
+if( os_name != "Windows" ){
+
+test_that("Bam Processing Linux and MacOS", {
+
+    # get_depth_matrix
+    testthat::expect_equal(
+        mtrx_samtools_basilisk[1:5,1:2],
+        true_mtrx_dimnames
+    )
+
+    # get_depth_matrix_samtools
+    testthat::expect_equal(
+        mtrx_satools[1:5,1:2],
+        true_mtrx
     )
 
     # get_depth_samtools
@@ -221,6 +238,7 @@ test_that("Bam Processing", {
 
 
 })
+
 }
 
 false_if_error <- function(expr){

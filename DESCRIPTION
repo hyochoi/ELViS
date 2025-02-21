@@ -1,6 +1,6 @@
 Package: ELViS
 Title: An R Package for Estimating Copy Number Levels of Viral Genome Segments Using Base-Resolution Read Depth Profile
-Version: 0.99.10
+Version: 0.99.11
 Authors@R: c(
     person("Hyo Young", "Choi", , "hyoyoung.choi@uthsc.edu", role = c("aut", "cph"),
            comment = c(ORCID = "0000-0002-7627-8493")),
