@@ -1,3 +1,6 @@
+# ELViS 0.99.12
+* Fixed formatting errors in vignette
+
 # ELViS 0.99.11
 * Test fix
 

@@ -34,17 +34,18 @@ knitr::opts_chunk$set(
 ```
 
 
-# 1. Introduction
+# Introduction
 
 Tumor viruses cause a significant proportion of human cancers by hijacking cell signaling and inducing proliferation. For example, HPV E6 and E7 proteins can promote tumorigenesis by inducing degradation of tumor suppressors p53 and pRb. Despite the importance of the dosages of the viral genes like these, existing tools cover viral integration, emphasizing the need for viral copy number analysis framework.
 
-## 1.1 Motivation for submitting to Bioconductor
+## Motivation for submitting to Bioconductor
 
 ELViS (Estimating Copy Number Levels of Viral Genomic Segments) is an R package that addresses this need through the analysis of copy numbers within viral genomes. ELViS utilizes base-resolution read depth data over viral genome to find copy number segments with two-dimensional segmentation approach. It also provides publish-ready figures, including histograms of read depths for sample filtering, coverage line plots over viral genome annotated with copy number change events and viral genes, and heatmaps showing overall pictures with multiple types of data with integrative clustering of samples. Taken together, our framework helps computational biologists and bioinformaticians to analyze viral copy number changes with ease.
 
 
 ------------------------------------------------------------------------
-# 2. Installation
+
+# Installation
 
 To install this package, start R (version "4.5") and enter:
 
@@ -57,12 +58,12 @@ BiocManager::install("ELViS")
 
 
 
-# 3. Run Example
+# Run Example
 
-## 3.1 Data preparation
+## Data preparation
 
 
-#### 3.1.1 Virus Reference Genome File
+### Virus Reference Genome File
 
 The following reference files are included in extdata directory of ELViS.
 
@@ -96,7 +97,7 @@ samtools faidx hg38_with_virus.fa
 ```
 
 
-#### 3.1.2 BAM Files
+### BAM Files
 \label{section-2-2-1}
 The following BAM files are included in extdata directory of ELViS.
 
@@ -129,7 +130,7 @@ Align `seq_r1.fastq` and `seq_r2.fastq` to merged reference of viral genomes usi
 
 
 
-## 3.2 Generate Raw Read Depth Matrix with Toy Examples
+## Generate Raw Read Depth Matrix with Toy Examples
 
 Load required libraries.
 
@@ -262,7 +263,7 @@ use_data(mtrx_samtools_reticulate)
 
 
 
-## 3.3 Filtering Out Low Depth Samples
+## Filtering Out Low Depth Samples
 
 Determine sample filtering threshold using histogram and filter out low depth samples
 
@@ -285,7 +286,7 @@ print(base_resol_depth[1:4,1:4])
 
 
 
-## 3.4 Run ELViS using the Filtered Depth Matrix
+## Run ELViS using the Filtered Depth Matrix
 
 Running ELViS using the filtered read depth matrix(`base_resol_depth`).
 
@@ -305,7 +306,7 @@ use_data(ELViS_toy_run_result)
 # 4min for 120 samples using 10 threads
 ```
 
-## 3.5 Plotting Figures
+## Plotting Figures
 
 Prepare plotting data
 
@@ -510,7 +511,7 @@ draw(top_ant %v% integ_ht_result$Heatmap %v% gene_cn$Heatmaps$intact_gene_cn %v%
 
 ------------------------------------------------------------------------
 
-# 4. sessionInfo
+# sessionInfo
 
 ```{r}
 sessionInfo()

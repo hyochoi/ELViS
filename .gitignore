@@ -9,3 +9,5 @@ ELViS.Rproj
 .quarto
 ELViS.Rproj
 inst/doc
+/doc/
+/Meta/
