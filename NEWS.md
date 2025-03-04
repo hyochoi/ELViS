@@ -1,3 +1,6 @@
+# ELViS 0.99.13
+* Fixed missing dependency
+
 # ELViS 0.99.12
 * Fixed formatting errors in vignette
 
